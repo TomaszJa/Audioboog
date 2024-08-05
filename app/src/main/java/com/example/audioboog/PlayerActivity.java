@@ -1,6 +1,5 @@
 package com.example.audioboog;
 
-import android.animation.ObjectAnimator;
 import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.media.MediaPlayer;
@@ -9,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -29,16 +29,22 @@ public class PlayerActivity extends AppCompatActivity {
     SeekBar seekmusic;
 
     String songName;
+    ImageView imageView;
     public static final String EXTRA_NAME = "song_name";
+
     static MediaPlayer mediaPlayer;
     int position;
+
     ArrayList<File> mySongs;
     Thread updateSeekBar;
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId()==android.R.id.home) {
-            onBackPressed();
+            Intent mIntent=new Intent(PlayerActivity.this, MainActivity.class);
+            songName = mySongs.get(position).getName().toString();
+            mIntent.putExtra(EXTRA_NAME, songName);
+            startActivity(mIntent);
         }
         return super.onOptionsItemSelected(item);
     }
@@ -70,21 +76,6 @@ public class PlayerActivity extends AppCompatActivity {
         String selectedSongName = i.getStringExtra("songname");
         txtsname.setSelected(true);
 
-        if (mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
-        }
-
-        if (bundle != null) {
-            mySongs = bundle.getParcelableArrayList("songs", File.class);
-            position = bundle.getInt("pos", 0);
-            Uri uri = Uri.parse(mySongs.get(position).toString());
-            songName = mySongs.get(position).getName();
-            txtsname.setText(songName);
-            mediaPlayer = MediaPlayer.create(getApplicationContext(), uri);
-            mediaPlayer.start();
-        }
-
         updateSeekBar = new Thread() {
             @Override
             public void run() {
@@ -103,6 +94,21 @@ public class PlayerActivity extends AppCompatActivity {
                 super.run();
             }
         };
+
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+        }
+
+        if (bundle != null) {
+            mySongs = bundle.getParcelableArrayList("songs", File.class);
+            position = bundle.getInt("pos", 0);
+            Uri uri = Uri.parse(mySongs.get(position).toString());
+            songName = mySongs.get(position).getName();
+            txtsname.setText(songName);
+            mediaPlayer = MediaPlayer.create(getApplicationContext(), uri);
+            mediaPlayer.start();
+        }
         seekmusic.setMax(mediaPlayer.getDuration());
         updateSeekBar.start();
         seekmusic.getProgressDrawable().setColorFilter(getResources().getColor(R.color.black), PorterDuff.Mode.MULTIPLY);

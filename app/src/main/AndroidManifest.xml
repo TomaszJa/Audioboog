@@ -15,6 +15,9 @@
         android:theme="@style/Theme.Audioboog"
         tools:targetApi="34">
         <activity
+            android:name=".RadioActivity"
+            android:exported="false" />
+        <activity
             android:name=".PlayerActivity"
             android:exported="false" />
         <activity
