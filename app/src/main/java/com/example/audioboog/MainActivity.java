@@ -38,6 +38,9 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener  {
     private DrawerLayout drawerLayout;
+    NavigationView navigationView;
+    Toolbar toolbar;
+
     ListView listView;
     String[] items;
     Button hbtnnext,hbtnprev,hbtnpause;
@@ -55,11 +58,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return insets;
         });
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         drawerLayout = findViewById(R.id.drawer_layout);
 
-        NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.navigation_drawer_open,R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
@@ -194,32 +197,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
         int x = menuItem.getItemId();
-        switch (menuItem.getItemId())
-        {
-//            case R.id.navalbums:
-//                Toast.makeText(this, "Albums here", Toast.LENGTH_SHORT).show();
-//                break;
-//            case R.id.navartists:
-//                Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
-//                break;
-//            case R.id.navsongs:
-//                Toast.makeText(this, "All songs here", Toast.LENGTH_SHORT).show();
-//                break;
-//            case R.id.navonline:
-//                Toast.makeText(this, "Online Library here", Toast.LENGTH_SHORT).show();
-//                break;
-            case 1:
-                Toast.makeText(this, "Albums here", Toast.LENGTH_SHORT).show();
-                break;
-            case 2:
-                Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
-                break;
-            case 3:
-                Toast.makeText(this, "All songs here", Toast.LENGTH_SHORT).show();
-                break;
-            case 4:
-                Toast.makeText(this, "Online Library here", Toast.LENGTH_SHORT).show();
-                break;
+        int itemId = menuItem.getItemId();
+        if (itemId == R.id.navalbums) {
+            Toast.makeText(this, "Albums here", Toast.LENGTH_SHORT).show();
+        } else if (itemId == R.id.navartists) {
+            Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
+        } else if (itemId == R.id.navsongs) {
+            Toast.makeText(this, "All songs here", Toast.LENGTH_SHORT).show();
+        } else if (itemId == R.id.navonline) {
+            Toast.makeText(this, "Online Library here", Toast.LENGTH_SHORT).show();
         }
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
