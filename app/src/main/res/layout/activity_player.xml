@@ -58,7 +58,7 @@
                 android:layout_centerInParent="true"
                 android:layout_alignParentLeft="false"
                 android:layout_marginLeft="20dp"
-                android:text="0:10"
+                android:text="0:00"
                 android:textColor="#000"
                 android:textSize="14sp"
                 android:layout_width="wrap_content"
