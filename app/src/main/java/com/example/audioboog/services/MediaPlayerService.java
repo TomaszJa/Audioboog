@@ -10,14 +10,10 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.provider.MediaStore;
-import android.widget.SeekBar;
 
 import androidx.annotation.Nullable;
 
-import com.example.audioboog.R;
-
 import java.io.IOException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -57,6 +53,11 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public IBinder onBind(Intent intent) {
         return binder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        return true;
     }
 
     /** Called when MediaPlayer is ready */
@@ -167,7 +168,18 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         return false;
     }
 
-    public MediaPlayer getMediaPlayer() {
-        return mediaPlayer;
+    public int getDuration() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getDuration();
+        }
+        return 0;
+    }
+
+    public int getCurrentPosition() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getCurrentPosition();
+        } else {
+            return 0;
+        }
     }
 }

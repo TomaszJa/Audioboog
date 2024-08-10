@@ -180,7 +180,6 @@ public class PlayerActivity extends AppCompatActivity {
                 setGuiMediaPlaying();
             }
         });
-        startSeekBar();
     }
 
     private void playMedia() {
@@ -199,7 +198,7 @@ public class PlayerActivity extends AppCompatActivity {
         timer.scheduleWithFixedDelay(() -> {
             if (mediaServiceBound) {
                 if (!seekBar.isPressed()) {
-                    seekBar.setProgress(mediaPlayerService.getMediaPlayer().getCurrentPosition());
+                    seekBar.setProgress(mediaPlayerService.getCurrentPosition());
                 }
             }
         }, 10, 300, TimeUnit.MILLISECONDS);
@@ -214,7 +213,7 @@ public class PlayerActivity extends AppCompatActivity {
 
     private void setSeekBarMax() {
         if (!mediaServiceBound) return;
-        int duration = mediaPlayerService.getMediaPlayer().getDuration();
+        int duration = mediaPlayerService.getDuration();
         seekBar.setMax(duration);
         txtsstop.setText(convertPlayingTimeToString(duration));
     }
@@ -260,8 +259,29 @@ public class PlayerActivity extends AppCompatActivity {
     };
 
     @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
+        pauseSeekBar();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
         if (mediaPlayerService != null) {
             if (mediaServiceBound) {
                 unbindService(connection);
@@ -279,6 +299,7 @@ public class PlayerActivity extends AppCompatActivity {
                 bindService(intent, connection, Context.BIND_AUTO_CREATE);
             }
         }
+        if (timer == null || timer.isShutdown()) startSeekBar();
     }
 
     @Override
