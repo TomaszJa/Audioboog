@@ -34,8 +34,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class PlayerActivity extends AppCompatActivity {
-    Button play_button, previous_button, next_button, fast_forward_button, fast_rewind_button;
-    TextView txtsname, txtsstart, txtsstop;
+    Button play_button, previous_button, next_button, fast_forward_button, fast_rewind_button, playbackSpeedButton;
+    TextView txtsname, txtsstart, txtsstop, txtPercentage;
     SeekBar seekBar;
     ScheduledExecutorService timer;
 
@@ -113,6 +113,11 @@ public class PlayerActivity extends AppCompatActivity {
             playMedia();
             setSeekBarMax();
         });
+        playbackSpeedButton.setOnClickListener(v -> {
+            if (mediaServiceBound) {
+                mediaPlayerService.setPlaybackSpeed();
+            }
+        });
 //        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
 //            @Override
 //            public void onCompletion(MediaPlayer mp) {
@@ -163,12 +168,13 @@ public class PlayerActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (!mediaServiceBound) return;
                 txtsstart.setText(convertPlayingTimeToString(progress));
+                String percentage = Math.round((float) (progress * 100) /seekBar.getMax()) + "%";
+                txtPercentage.setText(percentage);
             }
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
                 if (!mediaServiceBound) return;
-                mediaPlayerService.playOrPause();
                 setGuiMediaPaused();
             }
 
@@ -176,7 +182,6 @@ public class PlayerActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 if (!mediaServiceBound) return;
                 mediaPlayerService.seekMediaPlayer(seekBar.getProgress());
-                mediaPlayerService.playOrPause();
                 setGuiMediaPlaying();
             }
         });
@@ -187,10 +192,9 @@ public class PlayerActivity extends AppCompatActivity {
         Uri uri = Uri.parse(mySongs.get(position).toString());
         songName = mySongs.get(position).getName();
         txtsname.setText(songName);
-        play_button.setBackgroundResource(R.drawable.ic_pause);
 
         mediaPlayerService.playMedia(uri);
-        startSeekBar();
+        setGuiMediaPlaying();
     }
 
     private void startSeekBar() {
@@ -205,10 +209,17 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private String convertPlayingTimeToString(int milliseconds) {
-        long total_secs = TimeUnit.SECONDS.convert(milliseconds, TimeUnit.MILLISECONDS);
-        long mins = TimeUnit.MINUTES.convert(total_secs, TimeUnit.SECONDS);
-        long secs = total_secs - (mins * 60);
-        return mins + ":" + ((secs < 10) ? ("0" + secs) : secs);
+        long secs = TimeUnit.SECONDS.convert(milliseconds, TimeUnit.MILLISECONDS);
+        long mins = TimeUnit.MINUTES.convert(secs, TimeUnit.SECONDS);
+        long hours = TimeUnit.HOURS.convert(mins, TimeUnit.MINUTES);
+
+        secs = secs - (mins * 60);
+        mins = mins - (hours * 60);
+
+        String hoursString = ((hours < 10) ? ("0" + hours) : hours).toString();
+        String minsString = ((mins < 10) ? ("0" + mins) : mins).toString();
+        String secsString = ((secs < 10) ? ("0" + secs) : secs).toString();
+        return hoursString + ":" + minsString + ":" + secsString;
     }
 
     private void setSeekBarMax() {
@@ -235,8 +246,10 @@ public class PlayerActivity extends AppCompatActivity {
         next_button = findViewById(R.id.next_button);
         fast_forward_button = findViewById(R.id.fast_forward_button);
         fast_rewind_button = findViewById(R.id.fast_rewind_button);
+        playbackSpeedButton = findViewById(R.id.playback_speed_button);
         txtsname = findViewById(R.id.txtsn);
         txtsstart = findViewById(R.id.txtsstart);
+        txtPercentage = findViewById(R.id.text_percentage);
         txtsstop = findViewById(R.id.txtsstop);
         seekBar = findViewById(R.id.seekbar);
     }

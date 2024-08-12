@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 
 import androidx.annotation.Nullable;
 
@@ -35,6 +36,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public int onStartCommand(Intent intent, int flags, int startId) {
+        sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         Uri uri = intent.getData();
         playMedia(uri);
         return START_STICKY;
@@ -46,7 +48,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             if (mediaPlayer != null) releaseMediaPlayer();
             createMediaPlayer(mediaUri);
         }
-        sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
     }
 
     @Nullable
@@ -72,6 +73,12 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         stopSelf();
     }
 
+    @Override
+    public void onDestroy() {
+        onCompletion(mediaPlayer);
+        super.onDestroy();
+    }
+
     public void createMediaPlayer(Uri uri){
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setAudioAttributes(
@@ -86,7 +93,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.prepare();
 
-            filename = getNameFromUri(uri);
+            filename = getNameFromUri();
             int millis = mediaPlayer.getDuration();
             long total_secs = TimeUnit.SECONDS.convert(millis, TimeUnit.MILLISECONDS);
             long mins = TimeUnit.MINUTES.convert(total_secs, TimeUnit.SECONDS);
@@ -96,20 +103,21 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public String getNameFromUri(Uri uri){
-        String fileName = "";
-        Cursor cursor = null;
-        cursor = getContentResolver().query(uri, new String[]{
-                MediaStore.Images.ImageColumns.DISPLAY_NAME
-        }, null, null, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-//            fileName = cursor.getString(cursor.getColumnIndex(MediaStore.Images.ImageColumns.DISPLAY_NAME));
-        }
+    private String getNameFromUri(){
+        String file;
+        Cursor cursor =
+                getContentResolver().query(mediaUri, null, null, null, null);
         if (cursor != null) {
+            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+            cursor.moveToFirst();
+            file = cursor.getString(nameIndex);
             cursor.close();
+        } else {
+            String[] splittedUri = mediaUri.toString().split("/");
+            file = splittedUri[splittedUri.length - 1];
         }
-        return fileName;
+        file = file.replace(".mp3", "").replace(".wav", "");
+        return file;
     }
 
     public void releaseMediaPlayer(){
@@ -181,5 +189,25 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         } else {
             return 0;
         }
+    }
+
+    public String getFilename() {
+        if (filename == null || filename.isEmpty()) {
+            filename = getNameFromUri();
+        }
+        return filename;
+    }
+
+    public int getPercentage() {
+        if (mediaPlayer != null) {
+            return Math.round((float) (getCurrentPosition() * 100) /getDuration());
+        } else {
+            return 0;
+        }
+    }
+
+    public void setPlaybackSpeed() {
+        float speed = 2.00f;
+        mediaPlayer.setPlaybackParams(mediaPlayer.getPlaybackParams().setSpeed(speed));
     }
 }

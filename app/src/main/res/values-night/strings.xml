@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="_current_time_placeholder">00:00:00</string>
+    <string name="_total_duration_placeholder">00:04:10</string>
+    <string name="audio_file_cover">Audio file cover</string>
+</resources>

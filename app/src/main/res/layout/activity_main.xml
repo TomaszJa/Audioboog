@@ -10,6 +10,7 @@
     tools:openDrawer="start">
 
     <LinearLayout
+        android:fitsSystemWindows="true"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -88,7 +89,6 @@
                 android:padding="10dp"
                 android:scrollHorizontally="true"
                 android:singleLine="true"
-                android:text="Idle..."
                 android:textColor="#fff"
                 android:textSize="18sp"
                 android:textStyle="bold">
