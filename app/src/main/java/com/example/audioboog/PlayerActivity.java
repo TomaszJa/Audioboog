@@ -205,7 +205,7 @@ public class PlayerActivity extends AppCompatActivity {
                     seekBar.setProgress(mediaPlayerService.getCurrentPosition());
                 }
             }
-        }, 10, 300, TimeUnit.MILLISECONDS);
+        }, 10, 1000, TimeUnit.MILLISECONDS);
     }
 
     private String convertPlayingTimeToString(int milliseconds) {
