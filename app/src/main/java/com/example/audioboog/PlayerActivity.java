@@ -1,5 +1,6 @@
 package com.example.audioboog;
 
+import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -9,13 +10,10 @@ import android.graphics.PorterDuff;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -26,7 +24,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.source.PlaybackSpeed;
+import com.example.audioboog.source.Timeout;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -35,10 +36,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class PlayerActivity extends AppCompatActivity {
-    ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button, playbackSpeedButton;
-    TextView txtsname, txtsstart, txtsstop, txtPercentage;
+    ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button,
+            playbackSpeedButton, timeoutButton;
+    TextView txtsname, txtsstart, txtsstop, txtPercentage, playbackSpeedText, timeoutDuration;
     SeekBar seekBar;
-    ScheduledExecutorService timer;
+    ScheduledExecutorService seekbarTimer;
 
     String songName;
     ImageView imageView;
@@ -47,7 +49,6 @@ public class PlayerActivity extends AppCompatActivity {
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
-    static MediaPlayer mediaPlayer;
     int position;
     Uri mediaUri;
 
@@ -116,7 +117,12 @@ public class PlayerActivity extends AppCompatActivity {
         });
         playbackSpeedButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                mediaPlayerService.setPlaybackSpeed();
+                pickPlaybackSpeed();
+            }
+        });
+        timeoutButton.setOnClickListener(v -> {
+            if (mediaServiceBound) {
+                pickTimeoutDuration();
             }
         });
 //        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
@@ -140,12 +146,12 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void setGuiMediaPaused() {
-        play_button.setBackgroundResource(R.drawable.ic_play);
+        play_button.setImageResource(R.drawable.ic_play);
         pauseSeekBar();
     }
 
     private void setGuiMediaPlaying() {
-        play_button.setBackgroundResource(R.drawable.ic_pause);
+        play_button.setImageResource(R.drawable.ic_pause);
         startSeekBar();
     }
 
@@ -161,9 +167,6 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void initializeSeekBar() {
-        seekBar.getProgressDrawable().setColorFilter(getResources().getColor(R.color.black), PorterDuff.Mode.MULTIPLY);
-        seekBar.getThumb().setColorFilter(getResources().getColor(R.color.white), PorterDuff.Mode.SRC_IN);
-
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -199,8 +202,8 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void startSeekBar() {
-        timer = Executors.newScheduledThreadPool(1);
-        timer.scheduleWithFixedDelay(() -> {
+        seekbarTimer = Executors.newScheduledThreadPool(1);
+        seekbarTimer.scheduleWithFixedDelay(() -> {
             if (mediaServiceBound) {
                 if (!seekBar.isPressed()) {
                     seekBar.setProgress(mediaPlayerService.getCurrentPosition());
@@ -231,10 +234,10 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void pauseSeekBar() {
-        if (timer != null) {
-            timer.shutdown();
+        if (seekbarTimer != null) {
+            seekbarTimer.shutdown();
             try {
-                if (!timer.isShutdown()) while (!timer.awaitTermination(1, TimeUnit.SECONDS)) ;
+                if (!seekbarTimer.isShutdown()) while (!seekbarTimer.awaitTermination(1, TimeUnit.SECONDS)) ;
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -242,20 +245,61 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     private void InitializeGuiElements() {
-        play_button = findViewById(R.id.play_button);
+        play_button = findViewById(R.id.playButton);
         previous_button = findViewById(R.id.previous_button);
         next_button = findViewById(R.id.next_button);
         fast_forward_button = findViewById(R.id.fast_forward_button);
         fast_rewind_button = findViewById(R.id.fast_rewind_button);
         playbackSpeedButton = findViewById(R.id.playback_speed_button);
+        timeoutButton = findViewById(R.id.timeoutButton);
         txtsname = findViewById(R.id.txtsn);
         txtsstart = findViewById(R.id.txtsstart);
         txtPercentage = findViewById(R.id.text_percentage);
         txtsstop = findViewById(R.id.txtsstop);
         seekBar = findViewById(R.id.seekbar);
+        playbackSpeedText = findViewById(R.id.playbackSpeedText);
+        timeoutDuration = findViewById(R.id.timeoutDuration);
     }
 
-    private ServiceConnection connection = new ServiceConnection() {
+    private void pickPlaybackSpeed()
+    {
+        PlaybackSpeed.initPlaybackSpeeds();
+        ArrayList<PlaybackSpeed> playbackValues = PlaybackSpeed.getPlaybackSpeeds();
+        final OptionsPicker pickPlaybackSpeed = new OptionsPicker(PlayerActivity.this, PlaybackSpeed.playbackValues(), "Playback Speed");
+
+        PlaybackSpeed currentPlaybackSpeed = PlaybackSpeed.getByValue(mediaPlayerService.getPlaybackSpeed());
+        if (currentPlaybackSpeed != null) pickPlaybackSpeed.setDefaultValue(currentPlaybackSpeed.getId());
+        pickPlaybackSpeed.setValueSetListener(v -> {
+            PlaybackSpeed speed = playbackValues.get(pickPlaybackSpeed.getPickedValue());
+            if (mediaServiceBound) {
+                mediaPlayerService.setPlaybackSpeed(speed.getValue());
+                playbackSpeedText.setText(speed.getPlaybackString());
+                pickPlaybackSpeed.dismiss();
+            }
+        });
+
+        pickPlaybackSpeed.show();
+    }
+
+    private void pickTimeoutDuration()
+    {
+        Timeout.initTimeouts();
+        ArrayList<Timeout> timeoutValues = Timeout.getTimeouts();
+        final OptionsPicker pickTimeout = new OptionsPicker(PlayerActivity.this, Timeout.timeoutValues(), "Timeout");
+
+        pickTimeout.setValueSetListener(v -> {
+            Timeout timeout = timeoutValues.get(pickTimeout.getPickedValue());
+            if (mediaServiceBound) {
+                mediaPlayerService.setTimeout(timeout.getValue());
+                timeoutDuration.setText(convertPlayingTimeToString(timeout.getValue()*60000));
+                pickTimeout.dismiss();
+            }
+        });
+
+        pickTimeout.show();
+    }
+
+    private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
@@ -313,7 +357,7 @@ public class PlayerActivity extends AppCompatActivity {
                 bindService(intent, connection, Context.BIND_AUTO_CREATE);
             }
         }
-        if (timer == null || timer.isShutdown()) startSeekBar();
+        if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
     }
 
     @Override

@@ -302,12 +302,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onStart() {
         super.onStart();
-        if (!mediaServiceBound) {
-            if (sharedPreferences.getString("created", "").equals("true")) {
-                Intent intent = new Intent(MainActivity.this, MediaPlayerService.class);
-                bindService(intent, connection, Context.BIND_AUTO_CREATE);
-            }
-        }
     }
 
     @Override
@@ -327,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     protected void onResume() {
-        if (mediaServiceBound) {
+        if (mediaServiceBound && mediaPlayerService != null) {
             setSongName(mediaPlayerService.getFilename());
             setPlayOrPause();
         }

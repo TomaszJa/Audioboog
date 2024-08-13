@@ -2,7 +2,28 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/pickedVariableText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:ellipsize="marquee"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:padding="10dp"
+        android:singleLine="true"
+        android:textAlignment="center"
+        android:textColor="@color/colorText"
+        android:textSize="24sp"
+        android:textStyle="italic"
+        app:layout_constraintBottom_toTopOf="@+id/numberPicker1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+    </TextView>
 
     <NumberPicker
         android:id="@+id/numberPicker1"
@@ -10,40 +31,45 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:minHeight="30dp"
+        android:minWidth="150dp"
         android:scaleType="fitXY"
         android:adjustViewBounds="true"
+        android:foregroundTint="@color/colorText"
+        android:backgroundTint="@color/colorText"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/pickedVariableText" />
 
     <Button
-        android:id="@+id/button2"
+        android:id="@+id/setButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_margin="10dp"
-        android:layout_width="0dp"
+        android:minHeight="30dp"
+        android:scaleType="fitXY"
+        android:adjustViewBounds="true"
+        android:textColor="@color/colorText"
+        android:text="Set"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/cancelButton"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/numberPicker1" />
+
+    <Button
+        android:id="@+id/cancelButton"
+        android:layout_margin="10dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:minHeight="30dp"
         android:scaleType="fitXY"
         android:adjustViewBounds="true"
+        android:textColor="@color/colorText"
         android:text="Cancel"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/button1"
+        app:layout_constraintStart_toEndOf="@+id/setButton"
         app:layout_constraintTop_toBottomOf="@+id/numberPicker1"
         app:layout_constraintHeight_default="wrap"
         app:layout_constraintWidth_default="spread" />
-
-    <Button
-        android:id="@+id/button1"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:minHeight="30dp"
-        android:scaleType="fitXY"
-        android:adjustViewBounds="true"
-        android:text="Set"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/button2"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/numberPicker1" />
 </androidx.constraintlayout.widget.ConstraintLayout>

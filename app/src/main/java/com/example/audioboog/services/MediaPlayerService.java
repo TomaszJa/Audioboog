@@ -8,6 +8,7 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
@@ -24,6 +25,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     MediaPlayer mediaPlayer = null;
     String duration;
     ScheduledExecutorService timer;
+    CountDownTimer timeout;
+    long remainingTimeout;
     SharedPreferences sharedPreferences;
     Uri mediaUri;
     String filename;
@@ -70,6 +73,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
         releaseMediaPlayer();
+        if (timeout != null) timeout.cancel();
         stopSelf();
     }
 
@@ -104,7 +108,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     private String getNameFromUri(){
-        String file;
+        String file = "";
+        if (mediaUri == null) return file;
         Cursor cursor =
                 getContentResolver().query(mediaUri, null, null, null, null);
         if (cursor != null) {
@@ -151,14 +156,14 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void fastForward() {
         if (mediaPlayer != null) {
-            int position = mediaPlayer.getCurrentPosition() + 15000;
+            int position = mediaPlayer.getCurrentPosition() + 10000;
             mediaPlayer.seekTo(position);
         }
     }
 
     public void fastRewind() {
         if (mediaPlayer != null) {
-            int position = Math.max(0, mediaPlayer.getCurrentPosition() - 15000);
+            int position = Math.max(0, mediaPlayer.getCurrentPosition() - 10000);
             mediaPlayer.seekTo(position);
         }
     }
@@ -206,8 +211,41 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public void setPlaybackSpeed() {
-        float speed = 2.00f;
-        mediaPlayer.setPlaybackParams(mediaPlayer.getPlaybackParams().setSpeed(speed));
+    public void setPlaybackSpeed(float speed) {
+        if (mediaPlayer != null) {
+            mediaPlayer.setPlaybackParams(mediaPlayer.getPlaybackParams().setSpeed(speed));
+            mediaPlayer.getPlaybackParams().getSpeed();
+        }
+    }
+
+    public float getPlaybackSpeed() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getPlaybackParams().getSpeed();
+        } else {
+            return 1.0f;
+        }
+    }
+
+    public void setTimeout(int minutes) {
+        timeout = new CountDownTimer(minutes * 60000L, 1000) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                remainingTimeout = millisUntilFinished;
+            }
+
+            @Override
+            public void onFinish() {
+                if (mediaPlayer != null) {
+                    if (mediaPlayer.isPlaying()) {
+                        onCompletion(mediaPlayer);
+                    }
+                }
+            }
+        };
+        timeout.start();
+    }
+
+    public long getRemainingTimeout() {
+        return remainingTimeout;
     }
 }

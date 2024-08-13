@@ -9,4 +9,5 @@
     <string name="playback_speed_button">Playback speed button</string>
     <string name="timeout_button">Timeout button</string>
     <string name="play_or_pause_button">Play or Pause button</string>
+    <string name="audio_name">Audio Name</string>
 </resources>
