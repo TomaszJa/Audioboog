@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.Button;
 import android.widget.SeekBar;
@@ -34,7 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class PlayerActivity extends AppCompatActivity {
-    Button play_button, previous_button, next_button, fast_forward_button, fast_rewind_button, playbackSpeedButton;
+    ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button, playbackSpeedButton;
     TextView txtsname, txtsstart, txtsstop, txtPercentage;
     SeekBar seekBar;
     ScheduledExecutorService timer;

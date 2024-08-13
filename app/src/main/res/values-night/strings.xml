@@ -1,6 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Audioboog</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
     <string name="_current_time_placeholder">00:00:00</string>
     <string name="_total_duration_placeholder">00:04:10</string>
     <string name="audio_file_cover">Audio file cover</string>
+    <string name="percentage_placeholder">50%</string>
+    <string name="playback_speed_button">Playback speed button</string>
 </resources>
