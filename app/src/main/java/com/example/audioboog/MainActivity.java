@@ -52,20 +52,23 @@ import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.google.android.material.navigation.NavigationView;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener  {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerLayout;
     NavigationView navigationView;
     Toolbar toolbar;
 
     ListView listView;
     String[] items;
-    ImageButton hbtnnext,hbtnprev,hbtnpause;
+    ImageButton hbtnnext, hbtnprev, hbtnpause;
     TextView txtnp;
     int songId;
     private ArrayList<Audiobook> audiobooks;
@@ -102,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this,drawerLayout,toolbar,R.string.navigation_drawer_open,R.string.navigation_drawer_close);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
@@ -132,7 +135,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
         });
-
 
 
         hbtnpause.setOnClickListener(v -> {
@@ -206,8 +208,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             registerForActivityResult(new RequestPermission(), isGranted -> {
                 if (isGranted) {
                     Log.i("Permission: ", "Granted");
-//                    new Thread(this::loadAudiobooksFromDatabase).start();
-                    loadAudiobooksFromDatabase();
+                    ExecutorService executorService = Executors.newFixedThreadPool(1);
+                    try {
+                        executorService.submit(this::loadAudiobooksFromDatabase).get();
+                        displaySongs();
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                     // Permission is granted. Continue the action or workflow in your
                     // app.
                 } else {
@@ -237,7 +244,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void loadAudiobooksFromDatabase() {
         AudiobookDao audiobookDao = db.audiobookDao();
         List<AudiobookWithChapters> audiobooksWithChapters = audiobookDao.getAll();
-        for (AudiobookWithChapters audiobookWithChapter: audiobooksWithChapters) {
+        for (AudiobookWithChapters audiobookWithChapter : audiobooksWithChapters) {
             Audiobook audiobook = audiobookWithChapter.audiobook;
             audiobook.updateWithChapters(new ArrayList<>(audiobookWithChapter.chapters));
             audiobooks.add(audiobook);
@@ -257,7 +264,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void startPlayerActivity() {
-        Intent mIntent=new Intent(MainActivity.this, PlayerActivity.class);
+        Intent mIntent = new Intent(MainActivity.this, PlayerActivity.class);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(mIntent);
@@ -302,7 +309,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         Audiobook audiobook = new Audiobook();
                         Uri uri;
                         ArrayList<Chapter> chapters = new ArrayList<>();
-                        if(null != data.getClipData()) {
+                        if (null != data.getClipData()) {
                             for (int i = 0; i < data.getClipData().getItemCount(); i++) {
                                 uri = data.getClipData().getItemAt(i).getUri();
                                 chapters.add(getChapter(uri, audiobook));
@@ -330,9 +337,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         ChapterDao chapterDao = db.chapterDao();
         AudiobookDao audiobookDao = db.audiobookDao();
         audiobookDao.insertAll(audiobook);
-        for (Chapter chapter: chapters) {
-            if (chapterDao.getChapterById(chapter.getUid()) != null)
-            {
+        for (Chapter chapter : chapters) {
+            if (chapterDao.getChapterById(chapter.getUid()) != null) {
                 chapterDao.updateChapter(chapter);
             }
             chapterDao.insertAll(chapter);
@@ -364,7 +370,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
-    private String getNameFromUri(Uri uri){
+    private String getNameFromUri(Uri uri) {
         String file = "";
         if (uri == null) return file;
         Cursor cursor =
@@ -384,12 +390,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public void onBackPressed() {
-        if (drawerLayout.isDrawerOpen(GravityCompat.START))
-        {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START);
-        }
-        else
-        {
+        } else {
             Intent startMain = new Intent(Intent.ACTION_MAIN);
             startMain.addCategory(Intent.CATEGORY_HOME);
             startActivity(startMain);
