@@ -64,8 +64,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     ImageButton hbtnnext,hbtnprev,hbtnpause;
     TextView txtnp;
     int songId;
-    String chosenSongName;
-    private ArrayList<File> mySongs;
     private ArrayList<Audiobook> audiobooks;
 
     MediaPlayerService mediaPlayerService;
@@ -419,8 +417,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void setSongName(String songName) {
-        chosenSongName = songName;
-        txtnp.setText(chosenSongName);
+        txtnp.setText(songName);
         txtnp.setSelected(true);
     }
 

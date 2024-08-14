@@ -61,7 +61,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public void playMedia(Uri uri) {
-        if (mediaUri == null || !mediaUri.equals(uri))  {
+        if (mediaUri == null || !mediaUri.equals(uri)) {
             mediaUri = uri;
             if (mediaPlayer != null) releaseMediaPlayer();
             createMediaPlayer(mediaUri);
@@ -79,7 +79,9 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         return true;
     }
 
-    /** Called when MediaPlayer is ready */
+    /**
+     * Called when MediaPlayer is ready
+     */
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
         startMediaPlayer();
@@ -98,7 +100,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         super.onDestroy();
     }
 
-    public void createMediaPlayer(Uri uri){
+    public void createMediaPlayer(Uri uri) {
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setAudioAttributes(
                 new AudioAttributes.Builder()
@@ -116,13 +118,13 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             int millis = mediaPlayer.getDuration();
             long total_secs = TimeUnit.SECONDS.convert(millis, TimeUnit.MILLISECONDS);
             long mins = TimeUnit.MINUTES.convert(total_secs, TimeUnit.SECONDS);
-            long secs = total_secs - (mins*60);
+            long secs = total_secs - (mins * 60);
             duration = mins + ":" + secs;
-        } catch (IOException e){
+        } catch (IOException e) {
         }
     }
 
-    private String getNameFromUri(){
+    private String getNameFromUri() {
         String file = "";
         if (mediaUri == null) return file;
         Cursor cursor =
@@ -140,7 +142,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         return file;
     }
 
-    public void releaseMediaPlayer(){
+    public void releaseMediaPlayer() {
         if (timer != null) {
             timer.shutdown();
         }
@@ -183,19 +185,37 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public void playNextChapter() {
+    public boolean playNextChapter() {
         if (audiobook != null && mediaPlayer != null) {
-            playMedia(audiobook.getNextChapter().getPath());
+            Chapter chapter = audiobook.getNextChapter();
+            if (playNewChapter(chapter)) {
+                audiobook.setNextChapterAsCurrent();
+                return true;
+            }
         }
+        return false;
     }
 
-    public void playPreviousChapter() {
+    public boolean playPreviousChapter() {
         if (audiobook != null && mediaPlayer != null) {
-            playMedia(audiobook.getPreviousChapter().getPath());
+            Chapter chapter = audiobook.getPreviousChapter();
+            if (playNewChapter(chapter)) {
+                audiobook.setPreviousChapterAsCurrent();
+                return true;
+            }
         }
+        return false;
     }
 
-    public void seekMediaPlayer(int position){
+    private boolean playNewChapter(Chapter chapter) {
+        if (chapter != null) {
+            playMedia(chapter.getPath());
+            return true;
+        }
+        return false;
+    }
+
+    public void seekMediaPlayer(int position) {
         if (mediaPlayer != null) {
             mediaPlayer.seekTo(position);
         }
@@ -232,7 +252,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int getPercentage() {
         if (mediaPlayer != null) {
-            return Math.round((float) (getCurrentPosition() * 100) /getDuration());
+            return Math.round((float) (getCurrentPosition() * 100) / getDuration());
         } else {
             return 0;
         }
@@ -276,7 +296,9 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         return remainingTimeout;
     }
 
-    public boolean timeoutSet() { return timeout != null; }
+    public boolean timeoutSet() {
+        return timeout != null;
+    }
 
     public byte[] getCover() {
         if (audiobook != null) {

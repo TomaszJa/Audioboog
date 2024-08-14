@@ -48,7 +48,6 @@ public class PlayerActivity extends AppCompatActivity {
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
     int position;
-    Uri mediaUri;
 
     ArrayList<File> mySongs;
 
@@ -92,16 +91,18 @@ public class PlayerActivity extends AppCompatActivity {
         });
         next_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                mediaPlayerService.playNextChapter();
+                if (mediaPlayerService.playNextChapter()) {
+                    setUiForNewAudio();
+                }
             }
-            setUiForNewAudio();
 
         });
         previous_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                mediaPlayerService.playPreviousChapter();
+                if (mediaPlayerService.playPreviousChapter()) {
+                    setUiForNewAudio();
+                }
             }
-            setUiForNewAudio();
         });
         playbackSpeedButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
@@ -149,7 +150,7 @@ public class PlayerActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (!mediaServiceBound) return;
                 txtsstart.setText(convertPlayingTimeToString(progress));
-                String percentage = Math.round((float) (progress * 100) /seekBar.getMax()) + "%";
+                String percentage = (long)progress * 100 / (long) seekBar.getMax() + "%";
                 txtPercentage.setText(percentage);
                 if (mediaPlayerService.timeoutSet()) {
                     timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
@@ -293,6 +294,7 @@ public class PlayerActivity extends AppCompatActivity {
             if (mediaPlayerService != null) {
                 mediaServiceBound = true;
                 setUiForNewAudio();
+                if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
             }
         }
 
@@ -338,11 +340,8 @@ public class PlayerActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         if (!mediaServiceBound) {
-            if (sharedPreferences.getString("created", "").equals("true")) {
-                bindMediaPlayerService();
-            }
+            bindMediaPlayerService();
         }
-        if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
     }
 
     private void bindMediaPlayerService() {

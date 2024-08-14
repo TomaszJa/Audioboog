@@ -15,10 +15,10 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     private String bookName;
     private Uri path;
     private byte[] embeddedPicture;
-    private int currentPosition;
-    private int totalDuration;
+    private long currentPosition;
+    private long totalDuration;
 
-    public Chapter(int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, int currentPosition, int totalDuration) {
+    public Chapter(int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
         uid = UUID.randomUUID().toString();
         this.chapterNumber = chapterNumber;
         this.name = name;
@@ -36,8 +36,8 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         bookName = in.readString();
         path = in.readParcelable(Uri.class.getClassLoader());
         embeddedPicture = in.readBlob();
-        currentPosition = in.readInt();
-        totalDuration = in.readInt();
+        currentPosition = in.readLong();
+        totalDuration = in.readLong();
     }
 
     public static final Creator<Chapter> CREATOR = new Creator<Chapter>() {
@@ -68,11 +68,11 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         return path;
     }
 
-    public int getCurrentPosition() {
+    public long getCurrentPosition() {
         return currentPosition;
     }
 
-    public int getTotalDuration() {
+    public long getTotalDuration() {
         return totalDuration;
     }
 
@@ -103,7 +103,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         dest.writeString(bookName);
         dest.writeParcelable(path, flags);
         dest.writeBlob(embeddedPicture);
-        dest.writeInt(currentPosition);
-        dest.writeInt(totalDuration);
+        dest.writeLong(currentPosition);
+        dest.writeLong(totalDuration);
     }
 }
