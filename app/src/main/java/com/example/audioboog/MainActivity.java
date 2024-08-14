@@ -258,7 +258,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (!mediaServiceBound) {
             initializeMediaPlayerService();
         } else {
-            mediaPlayerService.playMedia(mediaUri);
+            mediaPlayerService.playMedia(audiobooks.get(songId));
         }
         setGuiMediaPlaying();
     }

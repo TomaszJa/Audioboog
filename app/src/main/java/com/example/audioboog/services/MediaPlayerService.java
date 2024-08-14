@@ -19,6 +19,7 @@ import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class MediaPlayerService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
@@ -60,6 +61,14 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             if (mediaPlayer != null) releaseMediaPlayer();
             createMediaPlayer(mediaUri);
         }
+    }
+
+    public void playMedia(Audiobook audiobook) {
+        if (Objects.equals(audiobook.getUid(), this.audiobook.getUid())) return;
+        if (timeout != null) timeout.cancel();
+        this.audiobook = audiobook;
+        Uri uri = audiobook.getCurrentChapter().getPath();
+        playMedia(uri);
     }
 
     @Nullable
