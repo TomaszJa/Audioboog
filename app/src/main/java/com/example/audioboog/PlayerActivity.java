@@ -174,6 +174,9 @@ public class PlayerActivity extends AppCompatActivity {
                 txtsstart.setText(convertPlayingTimeToString(progress));
                 String percentage = Math.round((float) (progress * 100) /seekBar.getMax()) + "%";
                 txtPercentage.setText(percentage);
+                if (mediaPlayerService.timeoutSet()) {
+                    timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+                }
             }
 
             @Override

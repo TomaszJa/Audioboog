@@ -111,8 +111,8 @@
 
         <ImageButton
             android:id="@+id/playButton"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
             android:contentDescription="@string/play_or_pause_button"
             android:src="@drawable/ic_pause"
             android:background="@drawable/rounded_button"
@@ -126,8 +126,9 @@
 
         <ImageButton
             android:id="@+id/fast_rewind_button"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="75dp"
+            android:layout_height="75dp"
+            android:contentDescription="@string/fast_rewind_description"
             android:src="@drawable/ic_replay_10"
             android:background="@null"
             android:scaleType="fitCenter"
@@ -139,8 +140,9 @@
 
         <ImageButton
             android:id="@+id/fast_forward_button"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="75dp"
+            android:layout_height="75dp"
+            android:contentDescription="@string/fast_forward_description"
             android:src="@drawable/ic_forward_10"
             android:background="@null"
             android:scaleType="fitCenter"
@@ -175,13 +177,13 @@
 
             <ImageButton
                 android:id="@+id/playback_speed_button"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:contentDescription="@string/playback_speed_button"
                 android:background="@null"
                 android:src="@drawable/ic_playback_speed"
                 android:scaleType="fitCenter"
-                app:tint="@color/colorAccent"
+                app:tint="@color/colorText"
                 app:layout_constraintBottom_toTopOf="@+id/playbackSpeedText"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
@@ -195,7 +197,7 @@
                 android:id="@+id/playbackSpeedText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="1.00x"
+                android:text="@string/playback_speed_placeholder"
                 android:textColor="@color/colorText"
                 android:textSize="16sp"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -222,13 +224,13 @@
 
             <ImageButton
                 android:id="@+id/timeoutButton"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@null"
                 android:contentDescription="@string/timeout_button"
                 android:src="@drawable/ic_timer"
                 android:scaleType="fitCenter"
-                app:tint="@color/colorAccent"
+                app:tint="@color/colorText"
                 app:layout_constraintBottom_toTopOf="@+id/timeoutDuration"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintLeft_toLeftOf="parent"
@@ -267,9 +269,10 @@
 
         <ImageButton
             android:id="@+id/previous_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@null"
+            android:contentDescription="@string/previous_button_description"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_previous"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -281,7 +284,7 @@
 
         <TextView
             android:id="@+id/txtsn"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:ellipsize="marquee"
             android:marqueeRepeatLimit="marquee_forever"
@@ -302,9 +305,10 @@
 
         <ImageButton
             android:id="@+id/next_button"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@null"
+            android:contentDescription="@string/next_button_description"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_next"
             app:layout_constraintBottom_toBottomOf="parent"

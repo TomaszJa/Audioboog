@@ -248,4 +248,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public long getRemainingTimeout() {
         return remainingTimeout;
     }
+
+    public boolean timeoutSet() { return timeout != null; }
 }
