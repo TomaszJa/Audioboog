@@ -1,27 +1,33 @@
 package com.example.audioboog;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.graphics.BitmapFactory;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
-import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.ListView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -31,6 +37,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import android.Manifest;
@@ -38,10 +45,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.source.Audiobook;
+import com.example.audioboog.source.Chapter;
 import com.google.android.material.navigation.NavigationView;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener  {
     private DrawerLayout drawerLayout;
@@ -55,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     int songId;
     String chosenSongName;
     private ArrayList<File> mySongs;
+    private ArrayList<Audiobook> audiobooks;
 
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
@@ -77,6 +89,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setSupportActionBar(toolbar);
         drawerLayout = findViewById(R.id.drawer_layout);
         txtnp = findViewById(R.id.txtnp);
+
+        audiobooks = new ArrayList<>();
 
         navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
@@ -153,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void initializeMediaPlayerService() {
-        mediaUri = Uri.parse(mySongs.get(songId).toString());
+        mediaUri = audiobooks.get(songId).getCurrentChapter().getPath();
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
         intent.setData(mediaUri);
         startService(intent);
@@ -205,6 +219,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (files != null) {
             for (File singlefile : files) {
                 if (singlefile.isDirectory() && !singlefile.isHidden()) {
+                    String x = singlefile.getName();
                     foundSongs.addAll(findSongs(singlefile));
                 } else if (singlefile.getName().endsWith(".mp3") || singlefile.getName().endsWith(".wav")) {
                     foundSongs.add(singlefile);
@@ -215,12 +230,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     void displaySongs() {
-        mySongs = findSongs(Environment.getExternalStorageDirectory());
-
-        items = new String[mySongs.size()];
-        for (int i = 0; i < mySongs.size(); i++) {
-            items[i] = mySongs.get(i).getName().replace(".mp3", "").replace(".wav", "");
-        }
+//        mySongs = findSongs(Environment.getExternalStorageDirectory());
+//
+//        items = new String[mySongs.size()];
+//        for (int i = 0; i < mySongs.size(); i++) {
+//            items[i] = mySongs.get(i).getName().replace(".mp3", "").replace(".wav", "");
+//        }
 
         CustomAdapter customAdapter = new CustomAdapter();
         listView.setAdapter(customAdapter);
@@ -236,8 +251,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void playMedia() {
-        mediaUri = Uri.parse(mySongs.get(songId).toString());
-        setSongName(listView.getItemAtPosition(songId).toString());
+        mediaUri = audiobooks.get(songId).getCurrentChapter().getPath();
+        setSongName(audiobooks.get(songId).getCurrentChapter().getName());
 
         if (!mediaServiceBound) {
             initializeMediaPlayerService();
@@ -262,6 +277,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         int x = menuItem.getItemId();
         int itemId = menuItem.getItemId();
         if (itemId == R.id.navalbums) {
+            addAudioFiles();
             Toast.makeText(this, "Albums here", Toast.LENGTH_SHORT).show();
         } else if (itemId == R.id.navartists) {
             Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
@@ -272,6 +288,81 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void addAudioFiles() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("audio/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+        addAudioFilesResultLauncher.launch(intent);
+    }
+
+    // You can do the assignment inside onAttach or onCreate, i.e, before the activity is displayed
+    ActivityResultLauncher<Intent> addAudioFilesResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    // There are no request codes
+                    Intent data = result.getData();
+                    if (data != null) {
+                        Uri uri;
+                        ArrayList<Chapter> chapters = new ArrayList<>();
+                        if(null != data.getClipData()) {
+                            for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                                uri = data.getClipData().getItemAt(i).getUri();
+                                chapters.add(getChapter(uri));
+                            }
+                        } else {
+                            uri = data.getData();
+                            chapters.add(getChapter(uri));
+                        }
+                        Collections.sort(chapters);
+                        Audiobook audiobook = new Audiobook(chapters.get(0).getBookName(), chapters, 0);
+                        audiobooks.add(audiobook);
+                        displaySongs();
+                    }
+                }
+            });
+
+    private Chapter getChapter(Uri uri) {
+        String name = getNameFromUri(uri);
+
+        try (final MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
+            retriever.setDataSource(this, uri);
+            byte[] art = retriever.getEmbeddedPicture();
+            String time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            String chapterNumberString = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER);
+            int chapterNumber = 0;
+            if (chapterNumberString != null) {
+                chapterNumber = Integer.parseInt(chapterNumberString.replaceAll("\\D", ""));
+            }
+            String bookName = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
+            int timeInMillisec = Integer.parseInt(time);
+            retriever.release();
+            return new Chapter(chapterNumber, name, bookName, uri, art, 0, timeInMillisec);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String getNameFromUri(Uri uri){
+        String file = "";
+        if (uri == null) return file;
+        Cursor cursor =
+                getContentResolver().query(uri, null, null, null, null);
+        if (cursor != null) {
+            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+            cursor.moveToFirst();
+            file = cursor.getString(nameIndex);
+            cursor.close();
+        } else {
+            String[] splittedUri = uri.toString().split("/");
+            file = splittedUri[splittedUri.length - 1];
+        }
+        file = file.replace(".mp3", "").replace(".wav", "");
+        return file;
     }
 
     @Override
@@ -353,12 +444,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         @Override
         public int getCount() {
-            return items.length;
+            return audiobooks.size();
         }
 
         @Override
         public Object getItem(int position) {
-            return items[position];
+            return audiobooks.get(position);
         }
 
         @Override
@@ -370,8 +461,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         public View getView(int position, View convertView, ViewGroup parent) {
             @SuppressLint("ViewHolder") View myView = getLayoutInflater().inflate(R.layout.list_item, null);
             TextView textSong = myView.findViewById(R.id.txtsongname);
+            ImageView imageView = myView.findViewById(R.id.imgsong);
+            byte[] art = audiobooks.get(position).getEmbeddedPicture();
+            if (art != null) {
+                imageView.setImageBitmap(BitmapFactory.decodeByteArray(art, 0, art.length));
+            }
+
             textSong.setSelected(true);
-            textSong.setText(items[position]);
+            textSong.setText(audiobooks.get(position).getName());
 
             return myView;
         }
