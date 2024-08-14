@@ -27,9 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 public class MediaPlayerService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
     private final IBinder binder = new LocalBinder();
-    private static final String ACTION_PLAY = "com.example.action.PLAY";
     MediaPlayer mediaPlayer = null;
-    String duration;
     ScheduledExecutorService timer;
     CountDownTimer timeout;
     long remainingTimeout;
@@ -89,6 +87,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
+        if (playNextChapter()) return;
         releaseMediaPlayer();
         if (timeout != null) timeout.cancel();
         stopSelf();
@@ -115,11 +114,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.prepare();
 
             filename = getNameFromUri();
-            int millis = mediaPlayer.getDuration();
-            long total_secs = TimeUnit.SECONDS.convert(millis, TimeUnit.MILLISECONDS);
-            long mins = TimeUnit.MINUTES.convert(total_secs, TimeUnit.SECONDS);
-            long secs = total_secs - (mins * 60);
-            duration = mins + ":" + secs;
         } catch (IOException e) {
         }
     }
@@ -248,6 +242,13 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             filename = getNameFromUri();
         }
         return filename;
+    }
+
+    public Chapter getCurrentChapter() {
+        if (audiobook != null){
+            return audiobook.getCurrentChapter();
+        }
+        return null;
     }
 
     public int getPercentage() {

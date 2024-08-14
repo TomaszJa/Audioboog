@@ -5,17 +5,28 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
 
 import java.util.ArrayList;
 import java.util.UUID;
 
+@Entity
 public class Audiobook implements Parcelable {
+    @PrimaryKey
     private String uid;
+    @ColumnInfo(name = "name")
     private String name;
+    @ColumnInfo(name = "chapters")
     private ArrayList<Chapter> chapters;
+    @ColumnInfo(name = "current_chapter")
     private int currentChapter;
+    @ColumnInfo(name = "embedded_picture")
     private byte[] embeddedPicture;
+    @ColumnInfo(name = "current_position")
     private long currentPosition;
+    @ColumnInfo(name = "total_duration")
     private long totalDuration;
 
     public Audiobook(String name, ArrayList<Chapter> chapters, long currentPosition) {

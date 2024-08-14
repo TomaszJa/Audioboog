@@ -39,11 +39,14 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.room.Room;
 
 import android.Manifest;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.audioboog.database.AppDatabase;
+import com.example.audioboog.database.dao.ChapterDao;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
@@ -53,6 +56,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener  {
     private DrawerLayout drawerLayout;
@@ -66,6 +70,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     int songId;
     private ArrayList<Audiobook> audiobooks;
 
+    AppDatabase db;
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
@@ -82,6 +87,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return insets;
         });
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
+        db = Room.databaseBuilder(getApplicationContext(),
+                        AppDatabase.class, "database-name")
+                .enableMultiInstanceInvalidation()
+                .build();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -318,9 +327,28 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         Audiobook audiobook = new Audiobook(chapters.get(0).getBookName(), chapters, 0);
                         audiobooks.add(audiobook);
                         displaySongs();
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                extracted(chapters);
+                            }
+                        }).start();
+                        String x = "";
                     }
                 }
             });
+
+    private void extracted(ArrayList<Chapter> chapters ) {
+        ChapterDao chapterDao = db.chapterDao();
+        for (Chapter chapter: chapters) {
+            if (chapterDao.getChapterById(chapter.getUid()) != null)
+            {
+                chapterDao.updateChapter(chapter);
+            }
+            chapterDao.insertAll(chapter);
+        }
+        String x = "";
+    }
 
     private Chapter getChapter(Uri uri) {
         String name = getNameFromUri(uri);

@@ -114,12 +114,6 @@ public class PlayerActivity extends AppCompatActivity {
                 pickTimeoutDuration();
             }
         });
-//        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-//            @Override
-//            public void onCompletion(MediaPlayer mp) {
-//                next_button.performClick();
-//            }
-//        });
 
         fast_forward_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
@@ -155,6 +149,7 @@ public class PlayerActivity extends AppCompatActivity {
                 if (mediaPlayerService.timeoutSet()) {
                     timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
                 }
+                if (songName != null && !songName.equals(mediaPlayerService.getCurrentChapter().getName())) setUiForNewAudio();
             }
 
             @Override
@@ -212,7 +207,8 @@ public class PlayerActivity extends AppCompatActivity {
         int duration = mediaPlayerService.getDuration();
         seekBar.setMax(duration);
         txtsstop.setText(convertPlayingTimeToString(duration));
-        txtsname.setText(mediaPlayerService.getFilename());
+        songName = mediaPlayerService.getCurrentChapter().getName();
+        txtsname.setText(songName);
         byte[] coverImage = mediaPlayerService.getCover();
         if (coverImage != null) {
             imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
@@ -341,6 +337,9 @@ public class PlayerActivity extends AppCompatActivity {
         super.onStart();
         if (!mediaServiceBound) {
             bindMediaPlayerService();
+
+        } else if (mediaPlayerService != null) {
+            if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
         }
     }
 
