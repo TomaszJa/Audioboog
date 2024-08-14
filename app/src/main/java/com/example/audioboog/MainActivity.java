@@ -17,6 +17,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ListView;
 
 import androidx.activity.EdgeToEdge;
@@ -49,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     ListView listView;
     String[] items;
-    Button hbtnnext,hbtnprev,hbtnpause;
+    ImageButton hbtnnext,hbtnprev,hbtnpause;
     TextView txtnp;
     int songId;
     String chosenSongName;
@@ -144,11 +145,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void setGuiMediaPaused() {
-        hbtnpause.setBackgroundResource(R.drawable.ic_play_circle);
+        hbtnpause.setImageResource(R.drawable.ic_play);
     }
 
     private void setGuiMediaPlaying() {
-        hbtnpause.setBackgroundResource(R.drawable.ic_pause_circle);
+        hbtnpause.setImageResource(R.drawable.ic_pause);
     }
 
     private void initializeMediaPlayerService() {

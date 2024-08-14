@@ -20,8 +20,8 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:id="@+id/toolbar"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-            android:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+            android:theme="@style/Theme.Audioboog"
+            android:popupTheme="@style/Theme.Audioboog"
             android:elevation="4dp">
         </androidx.appcompat.widget.Toolbar>
 
@@ -47,52 +47,62 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <Button
+            <ImageButton
                 android:id="@+id/hbtnpause"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:layout_centerVertical="true"
                 android:layout_marginEnd="10dp"
-                android:layout_toLeftOf="@+id/hbtnnext"
-                android:background="@drawable/ic_play_circle">
+                android:layout_toStartOf="@+id/hbtnnext"
+                android:scaleType="fitCenter"
+                app:tint="@color/colorText"
+                android:src="@drawable/ic_play"
+                android:background="@drawable/rounded_button">
 
-            </Button>
+            </ImageButton>
 
-            <Button
+            <ImageButton
                 android:id="@+id/hbtnnext"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
+                android:scaleType="fitCenter"
                 android:layout_marginEnd="10dp"
-                android:background="@drawable/ic_next">
+                app:tint="@color/colorText"
+                android:src="@drawable/ic_next"
+                android:background="@null">
 
-            </Button>
+            </ImageButton>
 
-            <Button
+            <ImageButton
                 android:id="@+id/hbtnprev"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_centerVertical="true"
+                android:scaleType="fitCenter"
                 android:layout_marginEnd="10dp"
-                android:layout_toLeftOf="@+id/hbtnpause"
-                android:background="@drawable/ic_previous">
+                android:layout_toStartOf="@+id/hbtnpause"
+                app:tint="@color/colorText"
+                android:src="@drawable/ic_previous"
+                android:background="@null">
 
-            </Button>
+            </ImageButton>
 
             <TextView
                 android:id="@+id/txtnp"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_toLeftOf="@+id/hbtnprev"
+                android:layout_toStartOf="@+id/hbtnprev"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:padding="10dp"
                 android:scrollHorizontally="true"
                 android:singleLine="true"
-                android:textColor="#fff"
-                android:textSize="18sp"
-                android:textStyle="bold">
+                android:textColor="@color/colorText"
+                android:textSize="25sp"
+                android:textStyle="bold"
+                android:layout_centerVertical="true">
 
             </TextView>
 
