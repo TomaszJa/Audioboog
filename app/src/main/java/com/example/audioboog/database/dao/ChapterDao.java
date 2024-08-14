@@ -8,7 +8,6 @@ import androidx.room.Update;
 
 import com.example.audioboog.source.Chapter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Dao

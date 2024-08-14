@@ -12,7 +12,6 @@ import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
 import android.util.Log;
@@ -37,7 +36,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.documentfile.provider.DocumentFile;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.room.Room;
 
@@ -46,7 +44,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.audioboog.database.AppDatabase;
+import com.example.audioboog.database.dao.AudiobookDao;
 import com.example.audioboog.database.dao.ChapterDao;
+import com.example.audioboog.database.relationships.AudiobookWithChapters;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
@@ -90,6 +90,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         db = Room.databaseBuilder(getApplicationContext(),
                         AppDatabase.class, "database-name")
                 .enableMultiInstanceInvalidation()
+                .fallbackToDestructiveMigration()
                 .build();
 
         toolbar = findViewById(R.id.toolbar);
@@ -111,7 +112,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         hbtnnext = findViewById(R.id.hbtnnext);
         hbtnprev = findViewById(R.id.hbtnprev);
         hbtnpause = findViewById(R.id.hbtnpause);
-
 
 
         if (savedInstanceState != null) {
@@ -206,7 +206,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             registerForActivityResult(new RequestPermission(), isGranted -> {
                 if (isGranted) {
                     Log.i("Permission: ", "Granted");
-                    displaySongs();
+//                    new Thread(this::loadAudiobooksFromDatabase).start();
+                    loadAudiobooksFromDatabase();
                     // Permission is granted. Continue the action or workflow in your
                     // app.
                 } else {
@@ -219,32 +220,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             });
 
-    public ArrayList<File> findSongs(File file) {
-        ArrayList<File> foundSongs = new ArrayList<>();
-
-        File[] files = file.listFiles();
-
-        if (files != null) {
-            for (File singlefile : files) {
-                if (singlefile.isDirectory() && !singlefile.isHidden()) {
-                    String x = singlefile.getName();
-                    foundSongs.addAll(findSongs(singlefile));
-                } else if (singlefile.getName().endsWith(".mp3") || singlefile.getName().endsWith(".wav")) {
-                    foundSongs.add(singlefile);
-                }
-            }
-        }
-        return foundSongs;
-    }
-
     void displaySongs() {
-//        mySongs = findSongs(Environment.getExternalStorageDirectory());
-//
-//        items = new String[mySongs.size()];
-//        for (int i = 0; i < mySongs.size(); i++) {
-//            items[i] = mySongs.get(i).getName().replace(".mp3", "").replace(".wav", "");
-//        }
-
         CustomAdapter customAdapter = new CustomAdapter();
         listView.setAdapter(customAdapter);
 
@@ -256,6 +232,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 startPlayerActivity();
             }
         });
+    }
+
+    private void loadAudiobooksFromDatabase() {
+        AudiobookDao audiobookDao = db.audiobookDao();
+        List<AudiobookWithChapters> audiobooksWithChapters = audiobookDao.getAll();
+        for (AudiobookWithChapters audiobookWithChapter: audiobooksWithChapters) {
+            Audiobook audiobook = audiobookWithChapter.audiobook;
+            audiobook.updateWithChapters(new ArrayList<>(audiobookWithChapter.chapters));
+            audiobooks.add(audiobook);
+        }
     }
 
     private void playMedia() {
@@ -287,6 +273,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         } else if (itemId == R.id.navartists) {
             Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
         } else if (itemId == R.id.navsongs) {
+            displaySongs();
             Toast.makeText(this, "All songs here", Toast.LENGTH_SHORT).show();
         } else if (itemId == R.id.navonline) {
             Toast.makeText(this, "Online Library here", Toast.LENGTH_SHORT).show();
@@ -312,25 +299,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     // There are no request codes
                     Intent data = result.getData();
                     if (data != null) {
+                        Audiobook audiobook = new Audiobook();
                         Uri uri;
                         ArrayList<Chapter> chapters = new ArrayList<>();
                         if(null != data.getClipData()) {
                             for (int i = 0; i < data.getClipData().getItemCount(); i++) {
                                 uri = data.getClipData().getItemAt(i).getUri();
-                                chapters.add(getChapter(uri));
+                                chapters.add(getChapter(uri, audiobook));
                             }
                         } else {
                             uri = data.getData();
-                            chapters.add(getChapter(uri));
+                            chapters.add(getChapter(uri, audiobook));
                         }
                         Collections.sort(chapters);
-                        Audiobook audiobook = new Audiobook(chapters.get(0).getBookName(), chapters, 0);
+                        audiobook.updateWithChapters(chapters);
                         audiobooks.add(audiobook);
                         displaySongs();
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                extracted(chapters);
+                                extracted(chapters, audiobook);
                             }
                         }).start();
                         String x = "";
@@ -338,8 +326,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             });
 
-    private void extracted(ArrayList<Chapter> chapters ) {
+    private void extracted(ArrayList<Chapter> chapters, Audiobook audiobook) {
         ChapterDao chapterDao = db.chapterDao();
+        AudiobookDao audiobookDao = db.audiobookDao();
+        audiobookDao.insertAll(audiobook);
         for (Chapter chapter: chapters) {
             if (chapterDao.getChapterById(chapter.getUid()) != null)
             {
@@ -347,10 +337,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
             chapterDao.insertAll(chapter);
         }
-        String x = "";
+        Audiobook q = audiobookDao.getAudiobookById(audiobook.getUid()).audiobook;
+        List<AudiobookWithChapters> x = audiobookDao.getAll();
+        Audiobook book = x.get(0).audiobook;
+        book.updateWithChapters(new ArrayList<>(x.get(0).chapters));
     }
 
-    private Chapter getChapter(Uri uri) {
+    private Chapter getChapter(Uri uri, Audiobook audiobook) {
         String name = getNameFromUri(uri);
 
         try (final MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
@@ -365,7 +358,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             String bookName = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
             int timeInMillisec = Integer.parseInt(time);
             retriever.release();
-            return new Chapter(chapterNumber, name, bookName, uri, art, 0, timeInMillisec);
+            return new Chapter(audiobook.getUid(), chapterNumber, name, bookName, uri, art, 0, timeInMillisec);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

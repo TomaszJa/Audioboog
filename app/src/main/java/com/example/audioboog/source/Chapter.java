@@ -7,6 +7,7 @@ import android.os.Parcelable;
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.ForeignKey;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 import androidx.room.TypeConverters;
@@ -17,12 +18,18 @@ import com.example.audioboog.database.converters.UriConverter;
 import java.util.Objects;
 import java.util.UUID;
 
-@Entity
+@Entity(foreignKeys = {@ForeignKey(entity = Audiobook.class,
+        parentColumns = "uid",
+        childColumns = "audiobookUid",
+        onDelete = ForeignKey.CASCADE)
+})
 public class Chapter implements Comparable<Chapter>, Parcelable {
 
     @PrimaryKey
     @NonNull
     private String uid;
+    @ColumnInfo(index = true)
+    private String audiobookUid;
     @ColumnInfo(name = "chapter_number")
     private int chapterNumber;
     @ColumnInfo(name = "name")
@@ -41,7 +48,8 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     private long totalDuration;
 
     @Ignore
-    public Chapter(int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
+    public Chapter(@NonNull String audiobookUid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
+        this.audiobookUid = audiobookUid;
         uid = UUID.randomUUID().toString();
         this.chapterNumber = chapterNumber;
         this.name = name;
@@ -52,8 +60,9 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         this.totalDuration = totalDuration;
     }
 
-    public Chapter(@NonNull String uid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
+    public Chapter(@NonNull String uid, @NonNull String audiobookUid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
         this.uid = uid;
+        this.audiobookUid = audiobookUid;
         this.chapterNumber = chapterNumber;
         this.name = name;
         this.bookName = bookName;
@@ -65,6 +74,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
 
     protected Chapter(Parcel in) {
         uid = Objects.requireNonNull(in.readString());
+        audiobookUid = Objects.requireNonNull(in.readString());
         chapterNumber = in.readInt();
         name = in.readString();
         bookName = in.readString();
@@ -89,6 +99,10 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     @NonNull
     public String getUid() {
         return uid;
+    }
+
+    public String getAudiobookUid() {
+        return audiobookUid;
     }
 
     public void setUid(@NonNull String uid) {
@@ -165,6 +179,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString(uid);
+        dest.writeString(audiobookUid);
         dest.writeInt(chapterNumber);
         dest.writeString(name);
         dest.writeString(bookName);

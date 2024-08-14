@@ -11,7 +11,6 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
-import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 
 import androidx.annotation.Nullable;
@@ -19,11 +18,8 @@ import androidx.annotation.Nullable;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class MediaPlayerService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
     private final IBinder binder = new LocalBinder();
