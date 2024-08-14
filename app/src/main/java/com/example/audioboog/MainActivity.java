@@ -138,14 +138,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         hbtnnext.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                songId = ((songId + 1) % mySongs.size());
-                playMedia();
+                mediaPlayerService.playNextChapter();
+                setSongName(mediaPlayerService.getFilename());
             }
         });
         hbtnprev.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                songId = ((songId - 1) < 0) ? (mySongs.size() - 1) : (songId - 1);
-                playMedia();
+                mediaPlayerService.playPreviousChapter();
+                setSongName(mediaPlayerService.getFilename());
             }
         });
     }
@@ -167,9 +167,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void initializeMediaPlayerService() {
-        mediaUri = audiobooks.get(songId).getCurrentChapter().getPath();
+        Audiobook audiobook = audiobooks.get(songId);
+        mediaUri = audiobook.getCurrentChapter().getPath();
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        intent.setData(mediaUri);
+        intent.putExtra("audiobook", audiobook);
         startService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
         sharedPreferences.edit().putString("created", "true").apply();
@@ -266,10 +267,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         Intent mIntent=new Intent(MainActivity.this, PlayerActivity.class);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        startActivity(mIntent
-                .putExtra("songs", mySongs)
-                .putExtra("songname", chosenSongName)
-                .putExtra("pos", songId));
+        startActivity(mIntent);
     }
 
     @Override

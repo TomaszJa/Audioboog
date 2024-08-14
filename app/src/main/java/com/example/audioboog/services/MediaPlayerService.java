@@ -8,6 +8,7 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.provider.MediaStore;
@@ -15,7 +16,12 @@ import android.provider.OpenableColumns;
 
 import androidx.annotation.Nullable;
 
+import com.example.audioboog.source.Audiobook;
+import com.example.audioboog.source.Chapter;
+
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +37,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     Uri mediaUri;
     String filename;
 
+    Audiobook audiobook;
+
     public class LocalBinder extends Binder {
         public MediaPlayerService getService() {
             // Return this instance of LocalService so clients can call public methods
@@ -40,8 +48,15 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int onStartCommand(Intent intent, int flags, int startId) {
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
-        Uri uri = intent.getData();
-        playMedia(uri);
+        Bundle bundle = intent.getExtras();
+
+        if (bundle != null) {
+            audiobook = bundle.getParcelable("audiobook", Audiobook.class);
+        }
+        if (audiobook != null) {
+            Uri uri = audiobook.getCurrentChapter().getPath();
+            playMedia(uri);
+        }
         return START_STICKY;
     }
 
@@ -168,6 +183,18 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
+    public void playNextChapter() {
+        if (audiobook != null && mediaPlayer != null) {
+            playMedia(audiobook.getNextChapter().getPath());
+        }
+    }
+
+    public void playPreviousChapter() {
+        if (audiobook != null && mediaPlayer != null) {
+            playMedia(audiobook.getPreviousChapter().getPath());
+        }
+    }
+
     public void seekMediaPlayer(int position){
         if (mediaPlayer != null) {
             mediaPlayer.seekTo(position);
@@ -250,4 +277,11 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public boolean timeoutSet() { return timeout != null; }
+
+    public byte[] getCover() {
+        if (audiobook != null) {
+            return audiobook.getEmbeddedPicture();
+        }
+        return null;
+    }
 }

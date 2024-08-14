@@ -1,13 +1,11 @@
 package com.example.audioboog;
 
-import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.ServiceConnection;
-import android.graphics.PorterDuff;
-import android.media.MediaPlayer;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -77,21 +75,9 @@ public class PlayerActivity extends AppCompatActivity {
         });
 
         InitializeGuiElements();
-
-        Intent i = getIntent();
-        Bundle bundle = i.getExtras();
-
-        String selectedSongName = i.getStringExtra("songname");
         txtsname.setSelected(true);
 
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
-
-        if (bundle != null) {
-            mySongs = bundle.getParcelableArrayList("songs", File.class);
-            position = bundle.getInt("pos", 0);
-
-            if (savedInstanceState == null) initializeMediaPlayerService();
-        }
         initializeSeekBar();
 
         play_button.setOnClickListener(v -> {
@@ -105,15 +91,17 @@ public class PlayerActivity extends AppCompatActivity {
             }
         });
         next_button.setOnClickListener(v -> {
-            position = ((position + 1) % mySongs.size());
-            playMedia();
-            setSeekBarMax();
+            if (mediaServiceBound) {
+                mediaPlayerService.playNextChapter();
+            }
+            setUiForNewAudio();
 
         });
         previous_button.setOnClickListener(v -> {
-            position = ((position - 1) < 0) ? (mySongs.size() - 1) : (position - 1);
-            playMedia();
-            setSeekBarMax();
+            if (mediaServiceBound) {
+                mediaPlayerService.playPreviousChapter();
+            }
+            setUiForNewAudio();
         });
         playbackSpeedButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
@@ -153,17 +141,6 @@ public class PlayerActivity extends AppCompatActivity {
     private void setGuiMediaPlaying() {
         play_button.setImageResource(R.drawable.ic_pause);
         startSeekBar();
-    }
-
-    private void initializeMediaPlayerService() {
-        mediaUri = Uri.parse(mySongs.get(position).toString());
-        Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        intent.setData(mediaUri);
-        startService(intent);
-        bindService(intent, connection, Context.BIND_AUTO_CREATE);
-        sharedPreferences.edit().putString("created", "true").apply();
-        songName = mySongs.get(position).getName();
-        txtsname.setText(songName);
     }
 
     private void initializeSeekBar() {
@@ -229,11 +206,16 @@ public class PlayerActivity extends AppCompatActivity {
         return hoursString + ":" + minsString + ":" + secsString;
     }
 
-    private void setSeekBarMax() {
+    private void setUiForNewAudio() {
         if (!mediaServiceBound) return;
         int duration = mediaPlayerService.getDuration();
         seekBar.setMax(duration);
         txtsstop.setText(convertPlayingTimeToString(duration));
+        txtsname.setText(mediaPlayerService.getFilename());
+        byte[] coverImage = mediaPlayerService.getCover();
+        if (coverImage != null) {
+            imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
+        }
     }
 
     private void pauseSeekBar() {
@@ -262,6 +244,7 @@ public class PlayerActivity extends AppCompatActivity {
         seekBar = findViewById(R.id.seekbar);
         playbackSpeedText = findViewById(R.id.playbackSpeedText);
         timeoutDuration = findViewById(R.id.timeoutDuration);
+        imageView = findViewById(R.id.imageview);
     }
 
     private void pickPlaybackSpeed()
@@ -309,7 +292,7 @@ public class PlayerActivity extends AppCompatActivity {
             mediaPlayerService = binder.getService();
             if (mediaPlayerService != null) {
                 mediaServiceBound = true;
-                setSeekBarMax();
+                setUiForNewAudio();
             }
         }
 
@@ -356,23 +339,14 @@ public class PlayerActivity extends AppCompatActivity {
         super.onStart();
         if (!mediaServiceBound) {
             if (sharedPreferences.getString("created", "").equals("true")) {
-                Intent intent = new Intent(PlayerActivity.this, MediaPlayerService.class);
-                bindService(intent, connection, Context.BIND_AUTO_CREATE);
+                bindMediaPlayerService();
             }
         }
         if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
     }
 
-    @Override
-    protected void onSaveInstanceState(@NonNull Bundle outState) {
-        outState.putInt("position", position);
-        super.onSaveInstanceState(outState);
-    }
-
-    @Override
-    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
-        position = savedInstanceState.getInt("position");
-        initializeMediaPlayerService();
-        super.onRestoreInstanceState(savedInstanceState);
+    private void bindMediaPlayerService() {
+        Intent intent = new Intent(PlayerActivity.this, MediaPlayerService.class);
+        bindService(intent, connection, Context.BIND_AUTO_CREATE);
     }
 }
