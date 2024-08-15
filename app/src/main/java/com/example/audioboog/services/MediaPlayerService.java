@@ -1,7 +1,10 @@
 package com.example.audioboog.services;
 
 import android.app.Service;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioAttributes;
@@ -19,6 +22,7 @@ import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -33,6 +37,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     String filename;
 
     Audiobook audiobook;
+    DatabaseService databaseService;
+    boolean databaseServiceBound;
 
     public class LocalBinder extends Binder {
         public MediaPlayerService getService() {
@@ -43,6 +49,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int onStartCommand(Intent intent, int flags, int startId) {
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
+        bindDatabaseService();
         Bundle bundle = intent.getExtras();
 
         if (bundle != null) {
@@ -53,6 +60,12 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             playMedia(uri);
         }
         return START_STICKY;
+    }
+
+    private void bindDatabaseService() {
+        Intent intent = new Intent(getApplicationContext(), DatabaseService.class);
+        startService(intent);
+        bindService(intent, databaseConnection, Context.BIND_AUTO_CREATE);
     }
 
     public void playMedia(Uri uri) {
@@ -101,6 +114,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onDestroy() {
         onCompletion(mediaPlayer);
+        unbindDatabaseService();
         super.onDestroy();
     }
 
@@ -311,5 +325,27 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             return audiobook.getEmbeddedPicture();
         }
         return null;
+    }
+
+    private final ServiceConnection databaseConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            DatabaseService.LocalBinder binder = (DatabaseService.LocalBinder) service;
+            databaseService = binder.getService();
+            if (databaseService != null) {
+                databaseServiceBound = true;
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            databaseServiceBound = false;
+        }
+    };
+
+    private void unbindDatabaseService() {
+        if (databaseService != null && databaseServiceBound) {
+            unbindService(databaseConnection);
+        }
     }
 }

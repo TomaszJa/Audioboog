@@ -2,6 +2,7 @@ package com.example.audioboog;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -47,6 +48,7 @@ import com.example.audioboog.database.AppDatabase;
 import com.example.audioboog.database.dao.AudiobookDao;
 import com.example.audioboog.database.dao.ChapterDao;
 import com.example.audioboog.database.relationships.AudiobookWithChapters;
+import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
@@ -59,7 +61,6 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerLayout;
@@ -74,8 +75,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private ArrayList<Audiobook> audiobooks;
 
     AppDatabase db;
+    DatabaseService databaseService;
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
+    boolean databaseServiceBound;
     boolean mediaServiceBound;
     private Uri mediaUri;
 
@@ -90,11 +93,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return insets;
         });
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
-        db = Room.databaseBuilder(getApplicationContext(),
-                        AppDatabase.class, "database-name")
-                .enableMultiInstanceInvalidation()
-                .fallbackToDestructiveMigration()
-                .build();
+        bindDatabaseService();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -181,11 +180,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
         intent.putExtra("audiobook", audiobook);
         startService(intent);
-        bindService(intent, connection, Context.BIND_AUTO_CREATE);
+        bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
         sharedPreferences.edit().putString("created", "true").apply();
     }
 
-    private ServiceConnection connection = new ServiceConnection() {
+    private ServiceConnection mediaServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
@@ -201,6 +200,30 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     };
 
+    private ServiceConnection databaseConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            DatabaseService.LocalBinder binder = (DatabaseService.LocalBinder) service;
+            databaseService = binder.getService();
+            if (databaseService != null) {
+                databaseServiceBound = true;
+                audiobooks = databaseService.getAudiobooks();
+                displaySongs();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            databaseServiceBound = false;
+        }
+    };
+
+    private void bindDatabaseService() {
+        Intent intent = new Intent(getApplicationContext(), DatabaseService.class);
+        startService(intent);
+        bindService(intent, databaseConnection, Context.BIND_AUTO_CREATE);
+    }
+
     // Register the permissions callback, which handles the user's response to the
     // system permissions dialog. Save the return value, an instance of
     // ActivityResultLauncher, as an instance variable.
@@ -208,13 +231,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             registerForActivityResult(new RequestPermission(), isGranted -> {
                 if (isGranted) {
                     Log.i("Permission: ", "Granted");
-                    ExecutorService executorService = Executors.newFixedThreadPool(1);
-                    try {
-                        executorService.submit(this::loadAudiobooksFromDatabase).get();
-                        displaySongs();
-                    } catch (ExecutionException | InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
                     // Permission is granted. Continue the action or workflow in your
                     // app.
                 } else {
@@ -231,24 +247,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         CustomAdapter customAdapter = new CustomAdapter();
         listView.setAdapter(customAdapter);
 
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                songId = position;
-                playMedia();
-                startPlayerActivity();
-            }
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            songId = position;
+            playMedia();
+            startPlayerActivity();
         });
-    }
-
-    private void loadAudiobooksFromDatabase() {
-        AudiobookDao audiobookDao = db.audiobookDao();
-        List<AudiobookWithChapters> audiobooksWithChapters = audiobookDao.getAll();
-        for (AudiobookWithChapters audiobookWithChapter : audiobooksWithChapters) {
-            Audiobook audiobook = audiobookWithChapter.audiobook;
-            audiobook.updateWithChapters(new ArrayList<>(audiobookWithChapter.chapters));
-            audiobooks.add(audiobook);
-        }
     }
 
     private void playMedia() {
@@ -272,7 +275,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
-        int x = menuItem.getItemId();
         int itemId = menuItem.getItemId();
         if (itemId == R.id.navalbums) {
             addAudioFiles();
@@ -322,13 +324,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         audiobook.updateWithChapters(chapters);
                         audiobooks.add(audiobook);
                         displaySongs();
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                extracted(chapters, audiobook);
-                            }
-                        }).start();
-                        String x = "";
+                        if (databaseServiceBound) {
+                            databaseService.updateAudiobook(audiobook);
+                        }
                     }
                 }
             });
@@ -403,12 +401,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mediaPlayerService != null) {
-            if (mediaServiceBound) {
-                unbindService(connection);
-                mediaServiceBound = false;
-            }
+        mediaServiceBound = unbindService(mediaPlayerService, mediaServiceBound, mediaServiceConnection);
+        databaseServiceBound = unbindService(databaseService, databaseServiceBound, databaseConnection);
+    }
+
+    private boolean unbindService(Service service, boolean serviceBound, ServiceConnection serviceConnection) {
+        if (service != null && serviceBound) {
+            unbindService(serviceConnection);
         }
+        return false;
     }
 
     @Override
