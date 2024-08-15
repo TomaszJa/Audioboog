@@ -321,7 +321,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             uri = data.getData();
                             chapters.add(getChapter(uri, audiobook));
                         }
-                        Collections.sort(chapters);
                         audiobook.updateWithChapters(chapters);
                         audiobooks.add(audiobook);
                         displaySongs();

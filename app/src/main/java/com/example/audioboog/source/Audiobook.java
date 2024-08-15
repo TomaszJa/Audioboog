@@ -13,6 +13,7 @@ import androidx.room.TypeConverters;
 import com.example.audioboog.database.converters.ByteArrayConverter;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -92,12 +93,22 @@ public class Audiobook implements Parcelable {
     };
 
     public void updateWithChapters(ArrayList<Chapter> chapters) {
+        Collections.sort(chapters);
         setChapters(chapters);
         setName(chapters.get(0).getBookName());
         setEmbeddedPicture(chapters.get(0).getEmbeddedPicture());
         this.totalDuration = 0;
-        for (Chapter chapter: chapters) {
+        for (Chapter chapter: this.chapters) {
+            chapter.setChapterStart(this.totalDuration);
             this.totalDuration += chapter.getTotalDuration();
+        }
+    }
+
+    public void setChapterByPosition(int position) {
+        for (int i = 0; i < chapters.size(); i++) {
+            if (position > chapters.get(i).getChapterStart() && position < (chapters.get(i).getChapterStart() + chapters.get(i).getTotalDuration())) {
+                setCurrentChapterNumber(i);
+            }
         }
     }
 

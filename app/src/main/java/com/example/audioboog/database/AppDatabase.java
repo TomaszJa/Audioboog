@@ -8,7 +8,7 @@ import com.example.audioboog.database.dao.ChapterDao;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
-@Database(entities = {Chapter.class, Audiobook.class}, version = 3)
+@Database(entities = {Chapter.class, Audiobook.class}, version = 4)
 public abstract class AppDatabase extends RoomDatabase {
     public abstract ChapterDao chapterDao();
     public abstract AudiobookDao audiobookDao();

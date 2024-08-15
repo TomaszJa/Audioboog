@@ -46,6 +46,8 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     private long currentPosition;
     @ColumnInfo(name = "total_duration")
     private long totalDuration;
+    @ColumnInfo(name = "chapter_start")
+    private long chapterStart;
 
     @Ignore
     public Chapter(@NonNull String audiobookUid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
@@ -58,9 +60,10 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         this.embeddedPicture = embeddedPicture;
         this.currentPosition = currentPosition;
         this.totalDuration = totalDuration;
+        this.chapterStart = 0;
     }
 
-    public Chapter(@NonNull String uid, @NonNull String audiobookUid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration) {
+    public Chapter(@NonNull String uid, @NonNull String audiobookUid, int chapterNumber, String name, String bookName, Uri path, byte[] embeddedPicture, long currentPosition, long totalDuration, long chapterStart) {
         this.uid = uid;
         this.audiobookUid = audiobookUid;
         this.chapterNumber = chapterNumber;
@@ -70,6 +73,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         this.embeddedPicture = embeddedPicture;
         this.currentPosition = currentPosition;
         this.totalDuration = totalDuration;
+        this.chapterStart = chapterStart;
     }
 
     protected Chapter(Parcel in) {
@@ -82,6 +86,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         embeddedPicture = in.readBlob();
         currentPosition = in.readLong();
         totalDuration = in.readLong();
+        chapterStart = in.readLong();
     }
 
     public static final Creator<Chapter> CREATOR = new Creator<Chapter>() {
@@ -111,6 +116,18 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
 
     public void setChapterNumber(int chapterNumber) {
         this.chapterNumber = chapterNumber;
+    }
+
+    public long getChapterStart() {
+        return chapterStart;
+    }
+
+    public long getChapterEnd() {
+        return getChapterStart() + getTotalDuration();
+    }
+
+    public void setChapterStart(long chapterStart) {
+        this.chapterStart = chapterStart;
     }
 
     public void setName(String name) {
@@ -187,5 +204,6 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         dest.writeBlob(embeddedPicture);
         dest.writeLong(currentPosition);
         dest.writeLong(totalDuration);
+        dest.writeLong(chapterStart);
     }
 }

@@ -11,7 +11,6 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
@@ -22,7 +21,6 @@ import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -67,7 +65,19 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaUri = uri;
             if (mediaPlayer != null) releaseMediaPlayer();
             createMediaPlayer(mediaUri);
+            seekMediaPlayer((int)audiobook.getCurrentChapter().getCurrentPosition());
             updateAudiobookInDatabase();
+        }
+    }
+
+    public void playMedia(Uri uri, int position) {
+        if (mediaUri == null || !mediaUri.equals(uri)) {
+            mediaUri = uri;
+            if (mediaPlayer != null) releaseMediaPlayer();
+            createMediaPlayer(mediaUri);
+            updateAudiobookInDatabase();
+
+            mediaPlayer.seekTo(position);
         }
     }
 
@@ -127,8 +137,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.setOnPreparedListener(this);
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.prepare();
-
-            seekMediaPlayer((int)audiobook.getCurrentChapter().getCurrentPosition());
 
             filename = getNameFromUri();
         } catch (IOException e) {
@@ -199,8 +207,12 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public boolean playNextChapter() {
         if (audiobook != null && mediaPlayer != null) {
+            long end = audiobook.getCurrentChapter().getChapterEnd();
+            int pos = getCurrentPosition();
+            if ((int)audiobook.getCurrentChapter().getChapterEnd() != getCurrentPosition()) return false;
             Chapter chapter = audiobook.getNextChapter();
             if (chapter != null) {
+                chapter.setCurrentPosition(0);
                 audiobook.setNextChapterAsCurrent();
                 playMedia(chapter.getPath());
                 return true;
@@ -213,6 +225,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         if (audiobook != null && mediaPlayer != null) {
             Chapter chapter = audiobook.getPreviousChapter();
             if (chapter != null) {
+                chapter.setCurrentPosition(0);
                 audiobook.setPreviousChapterAsCurrent();
                 playMedia(chapter.getPath());
                 return true;
@@ -223,8 +236,18 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void seekMediaPlayer(int position) {
         if (mediaPlayer != null) {
+            if (newPositionOutOfChapterBounds(position)) {
+                audiobook.setChapterByPosition(position);
+                playMedia(audiobook.getCurrentChapter().getPath(), position);
+                return;
+            }
             mediaPlayer.seekTo(position);
         }
+    }
+
+    private boolean newPositionOutOfChapterBounds(int position) {
+        Chapter currentChapter = getCurrentChapter();
+        return (position > (currentChapter.getChapterStart() + currentChapter.getTotalDuration())) || (position < currentChapter.getChapterStart());
     }
 
     public boolean isPlaying() {
@@ -236,14 +259,17 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int getDuration() {
         if (mediaPlayer != null) {
-            return mediaPlayer.getDuration();
+            return (int)audiobook.getTotalDuration();
         }
         return 0;
     }
 
     public int getCurrentPosition() {
         if (mediaPlayer != null) {
-            return mediaPlayer.getCurrentPosition();
+            int chapterStart = (int)getCurrentChapter().getChapterStart();
+            int position = mediaPlayer.getCurrentPosition();
+            int chapterEnd = (int) getCurrentChapter().getChapterEnd();
+            return (int)getCurrentChapter().getChapterStart() + mediaPlayer.getCurrentPosition();
         } else {
             return 0;
         }
