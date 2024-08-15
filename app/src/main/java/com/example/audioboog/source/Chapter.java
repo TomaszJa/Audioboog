@@ -20,7 +20,7 @@ import java.util.UUID;
 
 @Entity(foreignKeys = {@ForeignKey(entity = Audiobook.class,
         parentColumns = "uid",
-        childColumns = "audiobookUid",
+        childColumns = "audiobook_uid",
         onDelete = ForeignKey.CASCADE)
 })
 public class Chapter implements Comparable<Chapter>, Parcelable {
@@ -28,7 +28,7 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
     @PrimaryKey
     @NonNull
     private String uid;
-    @ColumnInfo(index = true)
+    @ColumnInfo(name = "audiobook_uid")
     private String audiobookUid;
     @ColumnInfo(name = "chapter_number")
     private int chapterNumber;

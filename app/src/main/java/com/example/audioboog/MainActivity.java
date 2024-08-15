@@ -178,19 +178,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         Audiobook audiobook = audiobooks.get(songId);
         mediaUri = audiobook.getCurrentChapter().getPath();
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        intent.putExtra("audiobook", audiobook);
+//        intent.putExtra("audiobook", audiobook);
         startService(intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
         sharedPreferences.edit().putString("created", "true").apply();
     }
 
-    private ServiceConnection mediaServiceConnection = new ServiceConnection() {
+    private final ServiceConnection mediaServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
             mediaPlayerService = binder.getService();
             if (mediaPlayerService != null) {
                 mediaServiceBound = true;
+                mediaPlayerService.playMedia(audiobooks.get(songId));
             }
         }
 
@@ -200,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     };
 
-    private ServiceConnection databaseConnection = new ServiceConnection() {
+    private final ServiceConnection databaseConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             DatabaseService.LocalBinder binder = (DatabaseService.LocalBinder) service;
@@ -255,8 +256,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void playMedia() {
-        mediaUri = audiobooks.get(songId).getCurrentChapter().getPath();
-        setSongName(audiobooks.get(songId).getCurrentChapter().getName());
+        Audiobook audiobook = audiobooks.get(songId);
+        setSongName(audiobook.getName());
 
         if (!mediaServiceBound) {
             initializeMediaPlayerService();
@@ -330,22 +331,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     }
                 }
             });
-
-    private void extracted(ArrayList<Chapter> chapters, Audiobook audiobook) {
-        ChapterDao chapterDao = db.chapterDao();
-        AudiobookDao audiobookDao = db.audiobookDao();
-        audiobookDao.insertAll(audiobook);
-        for (Chapter chapter : chapters) {
-            if (chapterDao.getChapterById(chapter.getUid()) != null) {
-                chapterDao.updateChapter(chapter);
-            }
-            chapterDao.insertAll(chapter);
-        }
-        Audiobook q = audiobookDao.getAudiobookById(audiobook.getUid()).audiobook;
-        List<AudiobookWithChapters> x = audiobookDao.getAll();
-        Audiobook book = x.get(0).audiobook;
-        book.updateWithChapters(new ArrayList<>(x.get(0).chapters));
-    }
 
     private Chapter getChapter(Uri uri, Audiobook audiobook) {
         String name = getNameFromUri(uri);

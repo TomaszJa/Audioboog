@@ -24,12 +24,15 @@ import com.example.audioboog.source.Chapter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MediaPlayerService extends Service implements MediaPlayer.OnPreparedListener, MediaPlayer.OnCompletionListener {
     private final IBinder binder = new LocalBinder();
     MediaPlayer mediaPlayer = null;
     ScheduledExecutorService timer;
+    ScheduledExecutorService databaseUpdater;
     CountDownTimer timeout;
     long remainingTimeout;
     SharedPreferences sharedPreferences;
@@ -50,15 +53,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public int onStartCommand(Intent intent, int flags, int startId) {
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         bindDatabaseService();
-        Bundle bundle = intent.getExtras();
-
-        if (bundle != null) {
-            audiobook = bundle.getParcelable("audiobook", Audiobook.class);
-        }
-        if (audiobook != null) {
-            Uri uri = audiobook.getCurrentChapter().getPath();
-            playMedia(uri);
-        }
         return START_STICKY;
     }
 
@@ -73,15 +67,17 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaUri = uri;
             if (mediaPlayer != null) releaseMediaPlayer();
             createMediaPlayer(mediaUri);
+            updateAudiobookInDatabase();
         }
     }
 
     public void playMedia(Audiobook audiobook) {
-        if (Objects.equals(audiobook.getUid(), this.audiobook.getUid())) return;
-        if (timeout != null) timeout.cancel();
-        this.audiobook = audiobook;
-        Uri uri = audiobook.getCurrentChapter().getPath();
-        playMedia(uri);
+        if (this.audiobook == null || !Objects.equals(audiobook.getUid(), this.audiobook.getUid())) {
+            if (timeout != null) timeout.cancel();
+            this.audiobook = audiobook;
+            Uri uri = audiobook.getCurrentChapter().getPath();
+            playMedia(uri);
+        }
     }
 
     @Nullable
@@ -132,6 +128,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.prepare();
 
+            seekMediaPlayer((int)audiobook.getCurrentChapter().getCurrentPosition());
+
             filename = getNameFromUri();
         } catch (IOException e) {
         }
@@ -159,6 +157,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         if (timer != null) {
             timer.shutdown();
         }
+        stopUpdatingAudiobook();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
@@ -201,8 +200,9 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public boolean playNextChapter() {
         if (audiobook != null && mediaPlayer != null) {
             Chapter chapter = audiobook.getNextChapter();
-            if (playNewChapter(chapter)) {
+            if (chapter != null) {
                 audiobook.setNextChapterAsCurrent();
+                playMedia(chapter.getPath());
                 return true;
             }
         }
@@ -212,18 +212,11 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public boolean playPreviousChapter() {
         if (audiobook != null && mediaPlayer != null) {
             Chapter chapter = audiobook.getPreviousChapter();
-            if (playNewChapter(chapter)) {
+            if (chapter != null) {
                 audiobook.setPreviousChapterAsCurrent();
+                playMedia(chapter.getPath());
                 return true;
             }
-        }
-        return false;
-    }
-
-    private boolean playNewChapter(Chapter chapter) {
-        if (chapter != null) {
-            playMedia(chapter.getPath());
-            return true;
         }
         return false;
     }
@@ -346,6 +339,28 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     private void unbindDatabaseService() {
         if (databaseService != null && databaseServiceBound) {
             unbindService(databaseConnection);
+        }
+    }
+    private void updateAudiobookInDatabase() {
+        databaseUpdater = Executors.newScheduledThreadPool(1);
+        databaseUpdater.scheduleWithFixedDelay(() -> {
+            if (databaseServiceBound && isPlaying() && audiobook != null) {
+                int currentPosition = getCurrentPosition();
+                audiobook.setCurrentPosition(currentPosition);
+                audiobook.getCurrentChapter().setCurrentPosition(currentPosition);
+                databaseService.updateAudiobookInDatabase(audiobook);
+            }
+        }, 10, 10, TimeUnit.SECONDS);
+    }
+
+    private void stopUpdatingAudiobook() {
+        if (databaseUpdater != null) {
+            databaseUpdater.shutdown();
+            try {
+                if (!databaseUpdater.isShutdown()) while (!databaseUpdater.awaitTermination(1, TimeUnit.SECONDS)) ;
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

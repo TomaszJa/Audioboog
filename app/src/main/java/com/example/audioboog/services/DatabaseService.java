@@ -100,7 +100,7 @@ public class DatabaseService extends Service {
         return audiobooks;
     }
 
-    private void updateAudiobookInDatabase(Audiobook audiobook) {
+    public void updateAudiobookInDatabase(Audiobook audiobook) {
         if (audiobookDao.getAudiobookById(audiobook.getUid()) == null) {
             audiobookDao.insertAll(audiobook);
         } else {

@@ -11,6 +11,6 @@ import java.util.List;
 public class AudiobookWithChapters {
     @Embedded
     public Audiobook audiobook;
-    @Relation(parentColumn = "uid", entityColumn = "audiobookUid")
+    @Relation(parentColumn = "uid", entityColumn = "audiobook_uid")
     public List<Chapter> chapters;
 }

@@ -3,6 +3,7 @@ package com.example.audioboog.database.dao;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
+import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
@@ -31,7 +32,7 @@ public interface ChapterDao {
     @Update
     void updateChapter(Chapter chapter);
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     void insertAll(Chapter... chapters);
 
     @Delete
