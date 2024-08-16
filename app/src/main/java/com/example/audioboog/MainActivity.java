@@ -96,13 +96,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         currentAudiobookUid = sharedPreferences.getString("currently_playing", "");
         bindDatabaseService();
+        txtnp = findViewById(R.id.txtnp);
+
+        audiobooks = new ArrayList<>();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         drawerLayout = findViewById(R.id.drawer_layout);
-        txtnp = findViewById(R.id.txtnp);
-
-        audiobooks = new ArrayList<>();
 
         navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);

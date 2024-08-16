@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.ServiceConnection;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.MenuItem;
@@ -17,15 +16,20 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.graphics.Insets;
+import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.PlaybackSpeed;
 import com.example.audioboog.source.Timeout;
+import com.google.android.material.navigation.NavigationView;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,7 +37,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class PlayerActivity extends AppCompatActivity {
+public class PlayerActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+    private DrawerLayout playerDrawerLayout;
+    NavigationView navigationView;
+    Toolbar toolbar;
+
     ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button,
             playbackSpeedButton, timeoutButton;
     TextView txtsname, txtsstart, txtsstop, txtPercentage, playbackSpeedText, timeoutDuration;
@@ -51,23 +59,23 @@ public class PlayerActivity extends AppCompatActivity {
 
     ArrayList<File> mySongs;
 
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            Intent mIntent = new Intent(PlayerActivity.this, MainActivity.class);
-            songName = mySongs.get(position).getName().toString();
-            mIntent.putExtra(EXTRA_NAME, songName);
-            startActivity(mIntent);
-        }
-        return super.onOptionsItemSelected(item);
-    }
+//    @Override
+//    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+//        if (item.getItemId() == android.R.id.home) {
+//            Intent mIntent = new Intent(PlayerActivity.this, MainActivity.class);
+//            songName = mySongs.get(position).getName().toString();
+//            mIntent.putExtra(EXTRA_NAME, songName);
+//            startActivity(mIntent);
+//        }
+//        return super.onOptionsItemSelected(item);
+//    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_player);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.player_drawer_layout), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
@@ -232,6 +240,29 @@ public class PlayerActivity extends AppCompatActivity {
         playbackSpeedText = findViewById(R.id.playbackSpeedText);
         timeoutDuration = findViewById(R.id.timeoutDuration);
         imageView = findViewById(R.id.imageview);
+
+        toolbar = findViewById(R.id.player_toolbar);
+        setSupportActionBar(toolbar);
+        playerDrawerLayout = findViewById(R.id.player_drawer_layout);
+        navigationView = findViewById(R.id.player_nav_view);
+        navigationView.setNavigationItemSelectedListener(this);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, playerDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        playerDrawerLayout.addDrawerListener(toggle);
+        toggle.syncState();
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+        int itemId = menuItem.getItemId();
+        if (itemId == R.id.navLibrary) {
+            String x = "";
+        } else if (itemId == R.id.navCurrentBook) {
+            String x = "";
+        } else if (itemId == R.id.navAddBook) {
+            String x = "";
+        }
+        playerDrawerLayout.closeDrawer(GravityCompat.START);
+        return true;
     }
 
     private void pickPlaybackSpeed()
