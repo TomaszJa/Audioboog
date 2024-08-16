@@ -4,29 +4,22 @@
     tools:showIn="navigation_view">
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/navsongs"
-            android:icon="@drawable/ic_library"
+            android:id="@+id/navLibrary"
+            android:icon="@drawable/ic_book_library"
             android:title="Library">
 
         </item>
+
         <item
-            android:id="@+id/navalbums"
-            android:icon="@drawable/ic_album"
-            android:title="Albums">
+            android:id="@+id/navCurrentBook"
+            android:icon="@drawable/ic_book"
+            android:title="Current Book">
 
         </item>
-
         <item
-            android:id="@+id/navartists"
-            android:icon="@drawable/ic_person_black_24dp"
-            android:title="Artists">
-
-        </item>
-
-        <item
-            android:id="@+id/navonline"
-            android:icon="@drawable/ic_cloud"
-            android:title="Online">
+            android:id="@+id/navAddBook"
+            android:icon="@drawable/ic_add"
+            android:title="Add New Audiobook">
 
         </item>
 

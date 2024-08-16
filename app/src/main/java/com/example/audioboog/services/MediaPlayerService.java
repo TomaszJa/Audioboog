@@ -318,7 +318,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             public void onFinish() {
                 if (mediaPlayer != null) {
                     if (mediaPlayer.isPlaying()) {
-                        releaseMediaPlayer();
+                        mediaPlayer.pause();
                     }
                 }
             }

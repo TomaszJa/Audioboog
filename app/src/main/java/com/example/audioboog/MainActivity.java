@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,8 +74,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     TextView txtnp;
     int songId;
     private ArrayList<Audiobook> audiobooks;
+    private String currentAudiobookUid;
 
-    AppDatabase db;
     DatabaseService databaseService;
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
@@ -93,6 +94,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return insets;
         });
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
+        currentAudiobookUid = sharedPreferences.getString("currently_playing", "");
         bindDatabaseService();
 
         toolbar = findViewById(R.id.toolbar);
@@ -119,10 +121,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (savedInstanceState != null) {
             Intent i = getIntent();
             Bundle bundle = i.getExtras();
-            if (bundle != null) {
-                songId = bundle.getInt("pos", 0);
-            }
-            initializeMediaPlayerService();
         }
 
         txtnp.setOnClickListener(v -> {
@@ -175,12 +173,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void initializeMediaPlayerService() {
-        Audiobook audiobook = audiobooks.get(songId);
-        mediaUri = audiobook.getCurrentChapter().getPath();
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
         startService(intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
-        sharedPreferences.edit().putString("created", "true").apply();
     }
 
     private final ServiceConnection mediaServiceConnection = new ServiceConnection() {
@@ -249,6 +244,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             songId = position;
+            String chosenAudiobookUid = audiobooks.get(position).getUid();
+            sharedPreferences.edit().putString("currently_playing", chosenAudiobookUid).apply();
             playMedia();
             startPlayerActivity();
         });
@@ -276,16 +273,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
         int itemId = menuItem.getItemId();
-        if (itemId == R.id.navalbums) {
-            addAudioFiles();
-            Toast.makeText(this, "Albums here", Toast.LENGTH_SHORT).show();
-        } else if (itemId == R.id.navartists) {
-            Toast.makeText(this, "Artists here", Toast.LENGTH_SHORT).show();
-        } else if (itemId == R.id.navsongs) {
+        if (itemId == R.id.navLibrary) {
             displaySongs();
-            Toast.makeText(this, "All songs here", Toast.LENGTH_SHORT).show();
-        } else if (itemId == R.id.navonline) {
-            Toast.makeText(this, "Online Library here", Toast.LENGTH_SHORT).show();
+        } else if (itemId == R.id.navCurrentBook) {
+            for (int i=0; i<audiobooks.size(); i++) {
+                currentAudiobookUid = sharedPreferences.getString("currently_playing", "");
+                if (Objects.equals(audiobooks.get(i).getUid(), currentAudiobookUid)) {
+                    songId = i;
+
+                    playMedia();
+                    startPlayerActivity();
+                }
+            }
+        } else if (itemId == R.id.navAddBook) {
+            addAudioFiles();
         }
         drawerLayout.closeDrawer(GravityCompat.START);
         return true;
@@ -439,7 +440,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
         songId = savedInstanceState.getInt("position");
-        initializeMediaPlayerService();
         super.onRestoreInstanceState(savedInstanceState);
     }
 

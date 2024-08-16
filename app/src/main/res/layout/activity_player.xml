@@ -259,6 +259,7 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/control_layout"
+        android:background="@color/colorPrimary"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -281,7 +282,7 @@
             app:layout_constraintHorizontal_bias="0.05"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/colorPrimary" />
+            app:tint="@color/colorText" />
 
         <TextView
             android:id="@+id/txtsn"
@@ -317,7 +318,7 @@
             app:layout_constraintHorizontal_bias="0.95"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/colorPrimary" />
+            app:tint="@color/colorText" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

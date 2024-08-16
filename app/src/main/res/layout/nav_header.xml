@@ -9,17 +9,19 @@
     <ImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/musixlogof">
+        android:backgroundTint="@color/colorAccent">
 
     </ImageView>
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingTop="8dp"
-        android:text="Muzix"
+        android:text="@string/app_title"
+        android:textColor="@color/white"
         android:textAlignment="center"
-        android:layout_marginLeft="12dp"
-        android:textAppearance="@style/TextAppearance.AppCompat.Body1">
+        android:backgroundTint="@color/colorAccent"
+        android:layout_marginStart="12dp"
+        android:textAppearance="@style/TextAppearance.AppCompat.Widget.ActionMode.Title">
 
     </TextView>
 
