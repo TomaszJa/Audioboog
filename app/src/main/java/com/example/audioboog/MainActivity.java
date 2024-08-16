@@ -61,10 +61,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     NavigationView navigationView;
     Toolbar toolbar;
     SearchView searchView;
-    ArrayAdapter adapter;
 
     ListView listView;
-    String[] items;
     ImageButton hbtnnext, hbtnprev, hbtnpause;
     TextView txtnp;
     int songId;
@@ -76,7 +74,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     SharedPreferences sharedPreferences;
     boolean databaseServiceBound;
     boolean mediaServiceBound;
-    private Uri mediaUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,11 +120,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         txtnp.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                if (mediaPlayerService.isPlaying()) {
-                    startPlayerActivity();
-                } else {
-                    Toast.makeText(MainActivity.this, "No song is playing", Toast.LENGTH_SHORT).show();
-                }
+                startPlayerActivity();
             }
         });
 
@@ -482,15 +475,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             @SuppressLint("ViewHolder") View myView = getLayoutInflater().inflate(R.layout.list_item, null);
-            TextView textSong = myView.findViewById(R.id.txtsongname);
-            ImageView imageView = myView.findViewById(R.id.imgsong);
-            byte[] art = audiobooks.get(position).getEmbeddedPicture();
+            Audiobook audiobook = audiobooks.get(position);
+            ImageView imageView = myView.findViewById(R.id.coverImage);
+            TextView textSong = myView.findViewById(R.id.audiobookName);
+            TextView percentageView = myView.findViewById(R.id.percentageCompletion);
+            byte[] art = audiobook.getEmbeddedPicture();
             if (art != null) {
                 imageView.setImageBitmap(BitmapFactory.decodeByteArray(art, 0, art.length));
             }
+            String percentage;
+            try {
+                percentage = audiobook.getCurrentPosition() * 100 / audiobook.getTotalDuration() + "%";
+            } catch (ArithmeticException ex) {
+                percentage = "Unknown";
+            }
+            percentageView.setText(percentage);
 
             textSong.setSelected(true);
-            textSong.setText(audiobooks.get(position).getName());
+            textSong.setText(audiobook.getName());
 
             return myView;
         }

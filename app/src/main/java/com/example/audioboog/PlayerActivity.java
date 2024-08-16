@@ -79,11 +79,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         play_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.playOrPause();
-                if (mediaPlayerService.isPlaying()) {
-                    setGuiMediaPlaying();
-                } else {
-                    setGuiMediaPaused();
-                }
+                setUiPlayingState();
             }
         });
         next_button.setOnClickListener(v -> {
@@ -123,6 +119,14 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 mediaPlayerService.fastRewind();
             }
         });
+    }
+
+    private void setUiPlayingState() {
+        if (mediaPlayerService.isPlaying()) {
+            setGuiMediaPlaying();
+        } else {
+            setGuiMediaPaused();
+        }
     }
 
     private void setGuiMediaPaused() {
@@ -200,6 +204,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         if (coverImage != null) {
             imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
         }
+        setUiPlayingState();
     }
 
     private void pauseSeekBar() {
