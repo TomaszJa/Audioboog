@@ -59,17 +59,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     ArrayList<File> mySongs;
 
-//    @Override
-//    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-//        if (item.getItemId() == android.R.id.home) {
-//            Intent mIntent = new Intent(PlayerActivity.this, MainActivity.class);
-//            songName = mySongs.get(position).getName().toString();
-//            mIntent.putExtra(EXTRA_NAME, songName);
-//            startActivity(mIntent);
-//        }
-//        return super.onOptionsItemSelected(item);
-//    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -255,6 +244,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
         int itemId = menuItem.getItemId();
         if (itemId == R.id.navLibrary) {
+            getOnBackPressedDispatcher().onBackPressed();
             String x = "";
         } else if (itemId == R.id.navCurrentBook) {
             String x = "";

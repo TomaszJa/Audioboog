@@ -19,8 +19,9 @@ import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.BaseAdapter;
+import android.widget.ArrayAdapter;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -38,16 +39,12 @@ import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
-import androidx.room.Room;
 
 import android.Manifest;
+import androidx.appcompat.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.audioboog.database.AppDatabase;
-import com.example.audioboog.database.dao.AudiobookDao;
-import com.example.audioboog.database.dao.ChapterDao;
-import com.example.audioboog.database.relationships.AudiobookWithChapters;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.Audiobook;
@@ -56,17 +53,15 @@ import com.google.android.material.navigation.NavigationView;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerLayout;
     NavigationView navigationView;
     Toolbar toolbar;
+    SearchView searchView;
+    ArrayAdapter adapter;
 
     ListView listView;
     String[] items;
@@ -116,6 +111,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         hbtnnext = findViewById(R.id.hbtnnext);
         hbtnprev = findViewById(R.id.hbtnprev);
         hbtnpause = findViewById(R.id.hbtnpause);
+        searchView=findViewById(R.id.searchView);
+
+        searchView.setOnClickListener(v -> searchView.onActionViewExpanded());
 
 
         if (savedInstanceState != null) {
@@ -239,8 +237,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             });
 
     void displaySongs() {
-        CustomAdapter customAdapter = new CustomAdapter();
+        CustomAdapter customAdapter = new CustomAdapter(getApplicationContext(), android.R.layout.simple_list_item_1, audiobooks);
         listView.setAdapter(customAdapter);
+
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                Filter filter = customAdapter.getFilter();
+                customAdapter.getFilter().filter(query);
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                Filter filter = customAdapter.getFilter();
+                customAdapter.getFilter().filter(newText);
+                return false;
+            }
+        });
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             songId = position;
@@ -443,7 +457,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         super.onRestoreInstanceState(savedInstanceState);
     }
 
-    class CustomAdapter extends BaseAdapter {
+    class CustomAdapter extends ArrayAdapter<Audiobook> implements Filterable {
+
+        public CustomAdapter(@NonNull Context context, int resource, @NonNull List<Audiobook> objects) {
+            super(context, resource, objects);
+        }
 
         @Override
         public int getCount() {
@@ -451,7 +469,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
 
         @Override
-        public Object getItem(int position) {
+        public Audiobook getItem(int position) {
             return audiobooks.get(position);
         }
 
@@ -460,6 +478,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return 0;
         }
 
+        @NonNull
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             @SuppressLint("ViewHolder") View myView = getLayoutInflater().inflate(R.layout.list_item, null);
@@ -474,6 +493,38 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             textSong.setText(audiobooks.get(position).getName());
 
             return myView;
+        }
+
+        @NonNull
+        @Override
+        public Filter getFilter() {
+            return new Filter() {
+                @Override
+                protected FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults results = new FilterResults();
+                    if (constraint == null || constraint.length() == 0) {
+                        audiobooks = databaseService.getAudiobooks();
+                        results.values = audiobooks;
+                        results.count = audiobooks.size();
+                    }
+                    else {
+                        ArrayList<Audiobook> filteredAudiobooks = new ArrayList<>();
+                        for (Audiobook audiobook : audiobooks) {
+                            if (audiobook.getName().toUpperCase().contains( constraint.toString().toUpperCase())) {
+                                filteredAudiobooks.add(audiobook);
+                            }
+                        }
+                        results.values = filteredAudiobooks;
+                        results.count = filteredAudiobooks.size();
+                    }
+                    return results;
+                }
+                @Override
+                protected void publishResults(CharSequence constraint, FilterResults results) {
+                    audiobooks = (ArrayList<Audiobook>) results.values;
+                    notifyDataSetChanged();
+                }
+            };
         }
     }
 

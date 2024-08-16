@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/navLibrary"
+            android:icon="@drawable/ic_book_library"
+            android:title="Library">
+
+        </item>
+
+        <item
+            android:id="@+id/navCurrentBook"
+            android:icon="@drawable/ic_book"
+            android:title="Current Book">
+
+        </item>
+
+    </group>
+</menu>
