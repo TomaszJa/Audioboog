@@ -167,16 +167,6 @@ public class PlayerActivity extends AppCompatActivity {
         });
     }
 
-    private void playMedia() {
-        if (!mediaServiceBound) return;
-        Uri uri = Uri.parse(mySongs.get(position).toString());
-        songName = mySongs.get(position).getName();
-        txtsname.setText(songName);
-
-        mediaPlayerService.playMedia(uri);
-        setGuiMediaPlaying();
-    }
-
     private void startSeekBar() {
         seekbarTimer = Executors.newScheduledThreadPool(1);
         seekbarTimer.scheduleWithFixedDelay(() -> {

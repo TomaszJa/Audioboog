@@ -60,33 +60,36 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         bindService(intent, databaseConnection, Context.BIND_AUTO_CREATE);
     }
 
-    public void playMedia(Uri uri) {
-        if (mediaUri == null || !mediaUri.equals(uri)) {
-            mediaUri = uri;
-            if (mediaPlayer != null) releaseMediaPlayer();
-            createMediaPlayer(mediaUri);
-            seekMediaPlayer((int)audiobook.getCurrentChapter().getCurrentPosition());
-            updateAudiobookInDatabase();
-        }
-    }
-
-    public void playMedia(Uri uri, int position) {
-        if (mediaUri == null || !mediaUri.equals(uri)) {
-            mediaUri = uri;
-            if (mediaPlayer != null) releaseMediaPlayer();
-            createMediaPlayer(mediaUri);
-            updateAudiobookInDatabase();
-
-            mediaPlayer.seekTo(position);
-        }
-    }
-
     public void playMedia(Audiobook audiobook) {
         if (this.audiobook == null || !Objects.equals(audiobook.getUid(), this.audiobook.getUid())) {
             if (timeout != null) timeout.cancel();
             this.audiobook = audiobook;
             Uri uri = audiobook.getCurrentChapter().getPath();
             playMedia(uri);
+        }
+    }
+
+    public void playMedia(Uri uri) {
+        if (mediaUri == null || !mediaUri.equals(uri)) {
+            mediaUri = uri;
+            if (mediaPlayer != null) {
+                setNewMedia(uri);
+            }
+            else {
+                createMediaPlayer(mediaUri);
+            }
+            updateAudiobookInDatabase();
+        }
+    }
+
+    private void setNewMedia(Uri uri) {
+        try {
+            mediaPlayer.stop();
+            mediaPlayer.reset();
+            mediaPlayer.setDataSource(this, uri);
+            mediaPlayer.prepare();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -107,19 +110,19 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
         startMediaPlayer();
+        mediaPlayer.seekTo((int)audiobook.getCurrentChapter().getCurrentPosition());
     }
 
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
-        if (playNextChapter()) return;
-        releaseMediaPlayer();
-        if (timeout != null) timeout.cancel();
-        stopSelf();
+        if (!playNextChapter()) {
+            if (timeout != null) timeout.cancel();
+        }
     }
 
     @Override
     public void onDestroy() {
-        onCompletion(mediaPlayer);
+        releaseMediaPlayer();
         unbindDatabaseService();
         super.onDestroy();
     }
@@ -162,10 +165,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public void releaseMediaPlayer() {
+        stopUpdatingAudiobook();
         if (timer != null) {
             timer.shutdown();
         }
-        stopUpdatingAudiobook();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
@@ -193,30 +196,35 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void fastForward() {
         if (mediaPlayer != null) {
-            int position = mediaPlayer.getCurrentPosition() + 10000;
-            mediaPlayer.seekTo(position);
+            int new_position = mediaPlayer.getCurrentPosition() + 10000;
+            if (new_position > mediaPlayer.getDuration()) {
+                new_position = getCurrentPosition() + 10000;
+                seekMediaPlayer(new_position);
+            } else {
+                mediaPlayer.seekTo(new_position);
+            }
         }
     }
 
     public void fastRewind() {
         if (mediaPlayer != null) {
-            int position = Math.max(0, mediaPlayer.getCurrentPosition() - 10000);
-            mediaPlayer.seekTo(position);
+            int new_position = mediaPlayer.getCurrentPosition() - 10000;
+            if (new_position < 0) {
+                new_position = Math.max(0, getCurrentPosition() - 10000);
+                seekMediaPlayer(new_position);
+            } else {
+                mediaPlayer.seekTo(new_position);
+            }
         }
     }
 
     public boolean playNextChapter() {
-        if (audiobook != null && mediaPlayer != null) {
-            long end = audiobook.getCurrentChapter().getChapterEnd();
-            int pos = getCurrentPosition();
-            if ((int)audiobook.getCurrentChapter().getChapterEnd() != getCurrentPosition()) return false;
-            Chapter chapter = audiobook.getNextChapter();
-            if (chapter != null) {
-                chapter.setCurrentPosition(0);
-                audiobook.setNextChapterAsCurrent();
-                playMedia(chapter.getPath());
-                return true;
-            }
+        Chapter nextChapter = audiobook.getNextChapter();
+        if (audiobook != null && mediaPlayer != null && nextChapter != null) {
+            nextChapter.setCurrentPosition(0);
+            audiobook.setNextChapterAsCurrent();
+            playMedia(nextChapter.getPath());
+            return true;
         }
         return false;
     }
@@ -236,18 +244,16 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void seekMediaPlayer(int position) {
         if (mediaPlayer != null) {
-            if (newPositionOutOfChapterBounds(position)) {
+            if (position > audiobook.getTotalDuration()) position = (int)audiobook.getTotalDuration();
+            if (position <= 0) position = 0;
+            if (getCurrentChapter().positionOutOfChapterBounds(position)) {
                 audiobook.setChapterByPosition(position);
-                playMedia(audiobook.getCurrentChapter().getPath(), position);
+                audiobook.getCurrentChapter().setCurrentPosition(position - audiobook.getCurrentChapter().getChapterStart());
+                playMedia(audiobook.getCurrentChapter().getPath());
                 return;
             }
-            mediaPlayer.seekTo(position);
+            mediaPlayer.seekTo(position - (int)audiobook.getCurrentChapter().getChapterStart());
         }
-    }
-
-    private boolean newPositionOutOfChapterBounds(int position) {
-        Chapter currentChapter = getCurrentChapter();
-        return (position > (currentChapter.getChapterStart() + currentChapter.getTotalDuration())) || (position < currentChapter.getChapterStart());
     }
 
     public boolean isPlaying() {
@@ -266,9 +272,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int getCurrentPosition() {
         if (mediaPlayer != null) {
-            int chapterStart = (int)getCurrentChapter().getChapterStart();
-            int position = mediaPlayer.getCurrentPosition();
-            int chapterEnd = (int) getCurrentChapter().getChapterEnd();
             return (int)getCurrentChapter().getChapterStart() + mediaPlayer.getCurrentPosition();
         } else {
             return 0;
@@ -287,14 +290,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             return audiobook.getCurrentChapter();
         }
         return null;
-    }
-
-    public int getPercentage() {
-        if (mediaPlayer != null) {
-            return Math.round((float) (getCurrentPosition() * 100) / getDuration());
-        } else {
-            return 0;
-        }
     }
 
     public void setPlaybackSpeed(float speed) {
@@ -323,7 +318,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             public void onFinish() {
                 if (mediaPlayer != null) {
                     if (mediaPlayer.isPlaying()) {
-                        onCompletion(mediaPlayer);
+                        releaseMediaPlayer();
                     }
                 }
             }
@@ -373,7 +368,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             if (databaseServiceBound && isPlaying() && audiobook != null) {
                 int currentPosition = getCurrentPosition();
                 audiobook.setCurrentPosition(currentPosition);
-                audiobook.getCurrentChapter().setCurrentPosition(currentPosition);
+                audiobook.getCurrentChapter().setCurrentPosition(mediaPlayer.getCurrentPosition());
                 databaseService.updateAudiobookInDatabase(audiobook);
             }
         }, 10, 10, TimeUnit.SECONDS);

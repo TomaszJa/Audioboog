@@ -178,7 +178,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         Audiobook audiobook = audiobooks.get(songId);
         mediaUri = audiobook.getCurrentChapter().getPath();
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-//        intent.putExtra("audiobook", audiobook);
         startService(intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
         sharedPreferences.edit().putString("created", "true").apply();

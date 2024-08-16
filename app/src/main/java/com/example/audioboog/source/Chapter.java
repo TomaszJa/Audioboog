@@ -122,6 +122,10 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         return chapterStart;
     }
 
+    public boolean positionOutOfChapterBounds(long position) {
+        return (position > getChapterEnd()) || position < getChapterStart();
+    }
+
     public long getChapterEnd() {
         return getChapterStart() + getTotalDuration();
     }

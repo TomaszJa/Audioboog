@@ -106,8 +106,9 @@ public class Audiobook implements Parcelable {
 
     public void setChapterByPosition(int position) {
         for (int i = 0; i < chapters.size(); i++) {
-            if (position > chapters.get(i).getChapterStart() && position < (chapters.get(i).getChapterStart() + chapters.get(i).getTotalDuration())) {
+            if (position >= chapters.get(i).getChapterStart() && position <= (chapters.get(i).getChapterEnd())) {
                 setCurrentChapterNumber(i);
+                return;
             }
         }
     }
