@@ -1,5 +1,6 @@
 package com.example.audioboog.services;
 
+import android.app.Notification;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -13,10 +14,16 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.CountDownTimer;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.provider.OpenableColumns;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+import android.view.KeyEvent;
 
 import androidx.annotation.Nullable;
 
+import com.example.audioboog.manager.MediaNotificationManager;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 
@@ -40,6 +47,11 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     DatabaseService databaseService;
     boolean databaseServiceBound;
 
+    public static final String TAG = "MediaSessionService";
+    public static final int NOTIFICATION_ID = 888;
+    private MediaNotificationManager mediaNotificationManager;
+    private MediaSessionCompat mediaSession;
+
     public class LocalBinder extends Binder {
         public MediaPlayerService getService() {
             // Return this instance of LocalService so clients can call public methods
@@ -47,9 +59,73 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
+//    @Override
+//    public void onCreate() {
+//        super.onCreate();
+//        createMediaPlayer();
+//        startNotificationService();
+//    }
+
+    private void startNotificationService() {
+        mediaNotificationManager = new MediaNotificationManager(this);
+        mediaSession = new MediaSessionCompat(this, "SOME_TAG");
+        mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mediaSession.setCallback(new MediaSessionCompat.Callback() {
+            @Override
+            public void onPlay() {
+                mediaPlayer.start();
+            }
+
+            @Override
+            public void onPause() {
+                mediaPlayer.pause();
+            }
+        });
+        Notification notification =
+                mediaNotificationManager.getNotification(
+                        getMetadata(), getState(), mediaSession.getSessionToken());
+
+        startForeground(NOTIFICATION_ID, notification);
+    }
+
+    public MediaMetadataCompat getMetadata() {
+        MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder();
+
+        builder.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "artist");
+        builder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, "title");
+        builder.putLong(
+                MediaMetadataCompat.METADATA_KEY_DURATION, mediaPlayer.getDuration()
+        );
+        return builder.build();
+    }
+
+    private PlaybackStateCompat getState() {
+        long actions = mediaPlayer.isPlaying() ? PlaybackStateCompat.ACTION_PAUSE : PlaybackStateCompat.ACTION_PLAY;
+        int state = mediaPlayer.isPlaying() ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+
+        final PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder();
+        stateBuilder.setActions(actions);
+        stateBuilder.setState(state,
+                mediaPlayer.getCurrentPosition(),
+                1.0f,
+                SystemClock.elapsedRealtime());
+        return stateBuilder.build();
+    }
+
+
     public int onStartCommand(Intent intent, int flags, int startId) {
-        bindDatabaseService();
+        if (!databaseServiceBound) bindDatabaseService();
         playbackSpeed = 1.0f;
+        if ("android.intent.action.MEDIA_BUTTON".equals(intent.getAction())) {
+            KeyEvent keyEvent = (KeyEvent) intent.getExtras().get("android.intent.extra.KEY_EVENT");
+            if (keyEvent != null && mediaPlayer != null) {
+                if (keyEvent.getKeyCode() == KeyEvent.KEYCODE_MEDIA_PAUSE) {
+                    mediaPlayer.pause();
+                } else {
+                    mediaPlayer.start();
+                }
+            }
+        }
         return START_STICKY;
     }
 
@@ -79,12 +155,12 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaUri = uri;
             if (mediaPlayer != null) {
                 setNewMedia(uri);
-            }
-            else {
+            } else {
                 createMediaPlayer(mediaUri);
             }
             updateAudiobookInDatabase();
             setPlaybackSpeed(playbackSpeed);
+            startNotificationService();
         }
     }
 
@@ -116,7 +192,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onPrepared(MediaPlayer mediaPlayer) {
         startMediaPlayer();
-        mediaPlayer.seekTo((int)audiobook.getCurrentChapter().getCurrentPosition());
+        mediaPlayer.seekTo((int) audiobook.getCurrentChapter().getCurrentPosition());
     }
 
     @Override
@@ -130,6 +206,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void onDestroy() {
         releaseMediaPlayer();
         unbindDatabaseService();
+        mediaSession.release();
+        mediaNotificationManager.onDestroy();
         super.onDestroy();
     }
 
@@ -148,6 +226,18 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.prepare();
         } catch (IOException e) {
         }
+    }
+
+    public void createMediaPlayer() {
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioAttributes(
+                new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+        );
+        mediaPlayer.setOnPreparedListener(this);
+        mediaPlayer.setOnCompletionListener(this);
     }
 
     public Audiobook getCurrentAudiobook() {
@@ -235,7 +325,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void seekMediaPlayer(int position) {
         if (mediaPlayer != null) {
-            if (position > audiobook.getTotalDuration()) position = (int)audiobook.getTotalDuration();
+            if (position > audiobook.getTotalDuration())
+                position = (int) audiobook.getTotalDuration();
             if (position <= 0) position = 0;
             if (getCurrentChapter().positionOutOfChapterBounds(position)) {
                 audiobook.setChapterByPosition(position);
@@ -243,7 +334,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
                 playMedia(audiobook.getCurrentChapter().getPath());
                 return;
             }
-            mediaPlayer.seekTo(position - (int)audiobook.getCurrentChapter().getChapterStart());
+            mediaPlayer.seekTo(position - (int) audiobook.getCurrentChapter().getChapterStart());
         }
     }
 
@@ -256,21 +347,21 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int getDuration() {
         if (mediaPlayer != null) {
-            return (int)audiobook.getTotalDuration();
+            return (int) audiobook.getTotalDuration();
         }
         return 0;
     }
 
     public int getCurrentPosition() {
         if (mediaPlayer != null) {
-            return (int)getCurrentChapter().getChapterStart() + mediaPlayer.getCurrentPosition();
+            return (int) getCurrentChapter().getChapterStart() + mediaPlayer.getCurrentPosition();
         } else {
             return 0;
         }
     }
 
     public Chapter getCurrentChapter() {
-        if (audiobook != null){
+        if (audiobook != null) {
             return audiobook.getCurrentChapter();
         }
         return null;
@@ -353,6 +444,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             unbindService(databaseConnection);
         }
     }
+
     private void updateAudiobookInDatabase() {
         databaseUpdater = Executors.newScheduledThreadPool(1);
         databaseUpdater.scheduleWithFixedDelay(() -> {
@@ -369,7 +461,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         if (databaseUpdater != null) {
             databaseUpdater.shutdown();
             try {
-                if (!databaseUpdater.isShutdown()) while (!databaseUpdater.awaitTermination(1, TimeUnit.SECONDS)) ;
+                if (!databaseUpdater.isShutdown())
+                    while (!databaseUpdater.awaitTermination(1, TimeUnit.SECONDS)) ;
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

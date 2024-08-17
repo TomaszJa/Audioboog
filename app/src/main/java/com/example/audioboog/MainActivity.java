@@ -13,6 +13,7 @@ import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
@@ -35,6 +36,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -105,6 +107,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         listView = findViewById(R.id.listViewSong);
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
+        requestPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION);
+        requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_LOCATION);
+        }
 
         buttonForward = findViewById(R.id.buttonForward);
         buttonRewind = findViewById(R.id.buttonRewind);
@@ -163,8 +170,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void initializeMediaPlayerService() {
-        Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        startService(intent);
+        Intent intent = new Intent(MainActivity.this.getApplicationContext(), MediaPlayerService.class);
+        ContextCompat.startForegroundService(
+                MainActivity.this.getApplicationContext(),
+                intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
