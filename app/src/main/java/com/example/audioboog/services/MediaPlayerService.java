@@ -67,6 +67,14 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
+    public void playSelectedChapter(String chapterUid) {
+        if (this.audiobook == null) return;
+        if (timeout != null) timeout.cancel();
+        audiobook.setChapterByUid(chapterUid);
+        Uri uri = audiobook.getCurrentChapter().getPath();
+        playMedia(uri);
+    }
+
     public void playMedia(Uri uri) {
         if (mediaUri == null || !mediaUri.equals(uri)) {
             mediaUri = uri;

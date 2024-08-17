@@ -32,7 +32,7 @@
         android:layout_height="0dp"
         android:padding="40dp"
         android:contentDescription="@string/audio_file_cover"
-        android:src="@drawable/circle"
+        android:src="@drawable/ic_book"
         app:layout_constraintBottom_toTopOf="@id/relativeLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

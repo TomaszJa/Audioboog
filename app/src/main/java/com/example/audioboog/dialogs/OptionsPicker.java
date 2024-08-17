@@ -8,7 +8,6 @@ import android.widget.NumberPicker;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.example.audioboog.R;
 
@@ -26,7 +25,7 @@ public class OptionsPicker extends Dialog {
         this.setContentView(R.layout.number_picker);
         setButton = this.findViewById(R.id.setButton);
         cancelButton = this.findViewById(R.id.cancelButton);
-        numberPicker = this.findViewById(R.id.numberPicker1);
+        numberPicker = this.findViewById(R.id.numberPicker);
         pickedVariableText = this.findViewById(R.id.pickedVariableText);
 
         numberPicker.setMaxValue(displayedValues.length - 1);

@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -27,6 +28,8 @@ import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.source.Chapter;
+import com.example.audioboog.source.ChaptersCollection;
 import com.example.audioboog.source.PlaybackSpeed;
 import com.example.audioboog.source.Timeout;
 import com.google.android.material.navigation.NavigationView;
@@ -76,6 +79,12 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         initializeSeekBar();
 
+        txtsname.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                pickChapter();
+            }
+        });
         play_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.playOrPause();
@@ -281,6 +290,29 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         });
 
         pickPlaybackSpeed.show();
+    }
+
+    private void pickChapter()
+    {
+        if (!mediaServiceBound) return;
+        ChaptersCollection.initChaptersCollection(mediaPlayerService.getCurrentAudiobook().getChapters());
+        ArrayList<ChaptersCollection> chaptersValues = ChaptersCollection.getChaptersCollections();
+        final OptionsPicker pickChapter = new OptionsPicker(PlayerActivity.this, ChaptersCollection.chaptersNumbers(), "Pick Chapter");
+
+        ChaptersCollection currentChapter = ChaptersCollection.getByUid(mediaPlayerService.getCurrentChapter().getUid());
+        if (currentChapter != null) pickChapter.setDefaultValue(currentChapter.getId());
+        pickChapter.setValueSetListener(v -> {
+            ChaptersCollection chapter = chaptersValues.get(pickChapter.getPickedValue());
+            if (mediaServiceBound) {
+                setGuiMediaPaused();
+                mediaPlayerService.playSelectedChapter(chapter.getChapter().getUid());
+                txtsname.setText(chapter.getChapter().getName());
+                setGuiMediaPlaying();
+                pickChapter.dismiss();
+            }
+        });
+
+        pickChapter.show();
     }
 
     private void pickTimeoutDuration()

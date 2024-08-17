@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
     <TextView
@@ -10,6 +10,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
+        android:layout_alignParentTop="true"
         android:ellipsize="marquee"
         android:marqueeRepeatLimit="marquee_forever"
         android:padding="10dp"
@@ -17,71 +18,56 @@
         android:textAlignment="center"
         android:textColor="@color/colorText"
         android:textSize="24sp"
-        android:textStyle="italic"
-        app:layout_constraintBottom_toTopOf="@+id/numberPicker1"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        android:textStyle="italic">
 
     </TextView>
 
     <NumberPicker
-        android:id="@+id/numberPicker1"
-        android:layout_margin="10dp"
-        android:layout_width="0dp"
+        android:id="@+id/numberPicker"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="30dp"
+        android:layout_margin="10dp"
+        android:layout_below="@+id/pickedVariableText"
         android:minWidth="150dp"
-        android:scaleType="fitXY"
-        android:adjustViewBounds="true"
-        android:theme="@style/Theme.Audioboog.NumberPicker"
-        app:layout_constraintBottom_toTopOf="@id/buttonGroup"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/pickedVariableText" />
+        android:minHeight="30dp"
+        android:theme="@style/Theme.Audioboog.NumberPicker" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/buttonGroup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:scaleType="fitXY"
-        android:adjustViewBounds="true"
-        app:layout_constraintHeight_default="wrap"
-        app:layout_constraintWidth_default="spread"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/numberPicker1">
-    <Button
-        android:id="@+id/setButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="10dp"
-        android:minHeight="48dp"
-        android:scaleType="fitXY"
-        android:adjustViewBounds="true"
-        android:textColor="@color/colorText"
-        android:text="@string/set"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/cancelButton"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"/>
+        android:layout_below="@+id/numberPicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <Button
-        android:id="@+id/cancelButton"
-        android:layout_margin="10dp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:scaleType="fitXY"
-        android:adjustViewBounds="true"
-        android:textColor="@color/colorText"
-        android:text="@string/cancel"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/setButton"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintHeight_default="wrap"
-        app:layout_constraintWidth_default="spread" />
+        <Button
+            android:id="@+id/setButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:adjustViewBounds="true"
+            android:minHeight="48dp"
+            android:scaleType="fitXY"
+            android:text="@string/set"
+            android:textColor="@color/colorText"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/cancelButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:id="@+id/cancelButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="10dp"
+            android:adjustViewBounds="true"
+            android:minHeight="48dp"
+            android:scaleType="fitXY"
+            android:text="@string/cancel"
+            android:textColor="@color/colorText"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_default="wrap"
+            app:layout_constraintStart_toEndOf="@+id/setButton"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_default="spread" />
     </androidx.constraintlayout.widget.ConstraintLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+</RelativeLayout>

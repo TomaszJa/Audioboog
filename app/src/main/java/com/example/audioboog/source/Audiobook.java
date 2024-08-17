@@ -113,6 +113,15 @@ public class Audiobook implements Parcelable {
         }
     }
 
+    public void setChapterByUid(String chapterUid) {
+        for (int i = 0; i < chapters.size(); i++) {
+            if (chapterUid.equals(chapters.get(i).getUid())) {
+                setCurrentChapterNumber(i);
+                return;
+            }
+        }
+    }
+
     public String getUid() {
         return uid;
     }
