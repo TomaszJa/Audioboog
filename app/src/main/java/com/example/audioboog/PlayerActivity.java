@@ -79,12 +79,8 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         initializeSeekBar();
 
-        txtsname.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                pickChapter();
-            }
-        });
+        txtsname.setOnClickListener(v -> pickChapter());
+
         play_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.playOrPause();
@@ -219,6 +215,11 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         if (coverImage != null) {
             imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
         }
+        String playbackSpeed = mediaPlayerService.getPlaybackSpeed() + "x";
+        playbackSpeedText.setText(playbackSpeed);
+        if (mediaPlayerService.timeoutSet()) {
+            timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+        }
     }
 
     private void pauseSeekBar() {
@@ -264,9 +265,8 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         int itemId = menuItem.getItemId();
         if (itemId == R.id.navLibrary) {
             getOnBackPressedDispatcher().onBackPressed();
-            String x = "";
         } else if (itemId == R.id.navCurrentBook) {
-            String x = "";
+            setUiForNewAudio();
         }
         playerDrawerLayout.closeDrawer(GravityCompat.START);
         return true;
@@ -288,7 +288,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 pickPlaybackSpeed.dismiss();
             }
         });
-
         pickPlaybackSpeed.show();
     }
 
@@ -311,7 +310,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 pickChapter.dismiss();
             }
         });
-
         pickChapter.show();
     }
 
@@ -329,7 +327,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 pickTimeout.dismiss();
             }
         });
-
         pickTimeout.show();
     }
 

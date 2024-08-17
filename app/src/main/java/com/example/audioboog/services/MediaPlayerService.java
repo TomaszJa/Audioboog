@@ -31,10 +31,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     MediaPlayer mediaPlayer = null;
     ScheduledExecutorService timer;
     ScheduledExecutorService databaseUpdater;
+    float playbackSpeed;
     CountDownTimer timeout;
     long remainingTimeout;
     Uri mediaUri;
-    String filename;
 
     Audiobook audiobook;
     DatabaseService databaseService;
@@ -49,6 +49,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int onStartCommand(Intent intent, int flags, int startId) {
         bindDatabaseService();
+        playbackSpeed = 1.0f;
         return START_STICKY;
     }
 
@@ -60,7 +61,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void playMedia(Audiobook audiobook) {
         if (this.audiobook == null || !Objects.equals(audiobook.getUid(), this.audiobook.getUid())) {
-            if (timeout != null) timeout.cancel();
             this.audiobook = audiobook;
             Uri uri = audiobook.getCurrentChapter().getPath();
             playMedia(uri);
@@ -69,7 +69,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void playSelectedChapter(String chapterUid) {
         if (this.audiobook == null) return;
-        if (timeout != null) timeout.cancel();
         audiobook.setChapterByUid(chapterUid);
         Uri uri = audiobook.getCurrentChapter().getPath();
         playMedia(uri);
@@ -85,6 +84,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
                 createMediaPlayer(mediaUri);
             }
             updateAudiobookInDatabase();
+            setPlaybackSpeed(playbackSpeed);
         }
     }
 
@@ -146,8 +146,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.setOnPreparedListener(this);
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.prepare();
-
-            filename = getNameFromUri();
         } catch (IOException e) {
         }
     }
@@ -156,29 +154,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         return audiobook;
     }
 
-    private String getNameFromUri() {
-        String file = "";
-        if (mediaUri == null) return file;
-        Cursor cursor =
-                getContentResolver().query(mediaUri, null, null, null, null);
-        if (cursor != null) {
-            int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-            cursor.moveToFirst();
-            file = cursor.getString(nameIndex);
-            cursor.close();
-        } else {
-            String[] splittedUri = mediaUri.toString().split("/");
-            file = splittedUri[splittedUri.length - 1];
-        }
-        file = file.replace(".mp3", "").replace(".wav", "");
-        return file;
-    }
-
     public void releaseMediaPlayer() {
         stopUpdatingAudiobook();
-        if (timer != null) {
-            timer.shutdown();
-        }
+        if (timer != null) timer.shutdown();
+        if (timeout != null) timeout.cancel();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
@@ -290,13 +269,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public String getFilename() {
-        if (filename == null || filename.isEmpty()) {
-            filename = getNameFromUri();
-        }
-        return filename;
-    }
-
     public Chapter getCurrentChapter() {
         if (audiobook != null){
             return audiobook.getCurrentChapter();
@@ -307,7 +279,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void setPlaybackSpeed(float speed) {
         if (mediaPlayer != null) {
             mediaPlayer.setPlaybackParams(mediaPlayer.getPlaybackParams().setSpeed(speed));
-            mediaPlayer.getPlaybackParams().getSpeed();
+            playbackSpeed = speed;
         }
     }
 
