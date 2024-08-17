@@ -183,6 +183,14 @@ public class Audiobook implements Parcelable {
         this.currentPosition = currentPosition;
     }
 
+    public void resetAudiobook() {
+        setCurrentPosition(0);
+        for (Chapter chapter: chapters) {
+            chapter.setCurrentPosition(0);
+        }
+        setCurrentChapterNumber(0);
+    }
+
     public void setTotalDuration(long totalDuration) {
         this.totalDuration = totalDuration;
     }

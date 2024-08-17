@@ -2,6 +2,7 @@ package com.example.audioboog;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -43,8 +44,8 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import android.Manifest;
 import androidx.appcompat.widget.SearchView;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import com.example.audioboog.dialogs.AudiobookOptions;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.source.Audiobook;
@@ -63,7 +64,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     SearchView searchView;
 
     ListView listView;
-    ImageButton hbtnnext, hbtnprev, hbtnpause;
+    ImageButton buttonForward, buttonRewind, hbtnpause;
     TextView txtnp;
     int songId;
     private ArrayList<Audiobook> audiobooks;
@@ -105,8 +106,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         listView = findViewById(R.id.listViewSong);
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
 
-        hbtnnext = findViewById(R.id.hbtnnext);
-        hbtnprev = findViewById(R.id.hbtnprev);
+        buttonForward = findViewById(R.id.buttonForward);
+        buttonRewind = findViewById(R.id.buttonRewind);
         hbtnpause = findViewById(R.id.hbtnpause);
         searchView=findViewById(R.id.searchView);
 
@@ -133,16 +134,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
 
 
-        hbtnnext.setOnClickListener(v -> {
+        buttonForward.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                mediaPlayerService.playNextChapter();
-                setSongName(mediaPlayerService.getFilename());
+                mediaPlayerService.fastForward();
             }
         });
-        hbtnprev.setOnClickListener(v -> {
+        buttonRewind.setOnClickListener(v -> {
             if (mediaServiceBound) {
-                mediaPlayerService.playPreviousChapter();
-                setSongName(mediaPlayerService.getFilename());
+                mediaPlayerService.fastRewind();
             }
         });
     }
@@ -236,14 +235,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                Filter filter = customAdapter.getFilter();
                 customAdapter.getFilter().filter(query);
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                Filter filter = customAdapter.getFilter();
                 customAdapter.getFilter().filter(newText);
                 return false;
             }
@@ -255,6 +252,39 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             sharedPreferences.edit().putString("currently_playing", chosenAudiobookUid).apply();
             playMedia();
             startPlayerActivity();
+        });
+        listView.setOnItemLongClickListener((parent, view, position, id) -> {
+            Audiobook chosenAudiobook = audiobooks.get(position);
+            AudiobookOptions audiobookOptions = new AudiobookOptions(MainActivity.this, chosenAudiobook);
+            audiobookOptions.setDeleteButtonListener(v -> {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setCancelable(true);
+                builder.setTitle("Delete Audiobook");
+                builder.setMessage("Are you sure you want to delete " + chosenAudiobook.getName() + "?");
+                builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                            databaseService.deleteAudiobook(chosenAudiobook);
+                            audiobooks.remove(chosenAudiobook);
+                            audiobookOptions.dismiss();
+                            displaySongs();
+                        });
+                builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
+                AlertDialog dialog = builder.create();
+                dialog.show();
+            });
+            audiobookOptions.setResetButtonListener(v -> {
+                if (mediaServiceBound) {
+                    Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
+                    if (Objects.equals(audiobook.getUid(), chosenAudiobook.getUid())) {
+                        mediaPlayerService.releaseMediaPlayer();
+                    }
+                }
+                chosenAudiobook.resetAudiobook();
+                databaseService.updateAudiobook(chosenAudiobook);
+                audiobookOptions.dismiss();
+                displaySongs();
+            });
+            audiobookOptions.show();
+            return true;
         });
     }
 
@@ -426,7 +456,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onResume() {
         if (mediaServiceBound && mediaPlayerService != null) {
-            setSongName(mediaPlayerService.getFilename());
+            setSongName(mediaPlayerService.getCurrentAudiobook().getName());
             setPlayOrPause();
         }
         super.onResume();

@@ -18,4 +18,6 @@
     <string name="previous_button_description">Play previous song</string>
     <string name="next_button_description">Play next song</string>
     <string name="app_title">Audioboog</string>
+    <string name="delete_audiobook">Delete Audiobook</string>
+    <string name="reset_progress">Reset Progress</string>
 </resources>

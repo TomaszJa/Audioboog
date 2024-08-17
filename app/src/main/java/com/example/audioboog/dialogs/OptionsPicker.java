@@ -22,16 +22,6 @@ public class OptionsPicker extends Dialog {
         initializeGui(displayedValues, pickedVariable);
     }
 
-    public OptionsPicker(@NonNull Context context, int themeResId, String[] displayedValues, String pickedVariable) {
-        super(context, themeResId);
-        initializeGui(displayedValues, pickedVariable);
-    }
-
-    protected OptionsPicker(@NonNull Context context, boolean cancelable, @Nullable OnCancelListener cancelListener, String[] displayedValues, String pickedVariable) {
-        super(context, cancelable, cancelListener);
-        initializeGui(displayedValues, pickedVariable);
-    }
-
     private void initializeGui(String[] displayedValues, String pickedVariable) {
         this.setContentView(R.layout.number_picker);
         setButton = this.findViewById(R.id.setButton);

@@ -71,6 +71,10 @@ public class DatabaseService extends Service {
         submitTask(() -> updateAudiobookInDatabase(audiobook));
     }
 
+    public void deleteAudiobook(Audiobook audiobook) {
+        submitTask(() -> deleteAudiobookInDatabase(audiobook));
+    }
+
     private void submitTask(Runnable task) {
         try {
             executorService.submit(task).get();
@@ -107,6 +111,10 @@ public class DatabaseService extends Service {
             audiobookDao.updateAudiobook(audiobook);
         }
         updateChaptersForAudiobook(audiobook);
+    }
+
+    private void deleteAudiobookInDatabase(Audiobook audiobook) {
+        audiobookDao.delete(audiobook);
     }
 
     private void updateChaptersForAudiobook(Audiobook audiobook) {

@@ -84,16 +84,20 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         });
         next_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
+                setGuiMediaPaused();
                 if (mediaPlayerService.playNextChapter()) {
                     setUiForNewAudio();
+                    setGuiMediaPlaying();
                 }
             }
 
         });
         previous_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
+                setGuiMediaPaused();
                 if (mediaPlayerService.playPreviousChapter()) {
                     setUiForNewAudio();
+                    setGuiMediaPlaying();
                 }
             }
         });
@@ -145,8 +149,10 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (!mediaServiceBound) return;
                 txtsstart.setText(convertPlayingTimeToString(progress));
-                String percentage = (long)progress * 100 / (long) seekBar.getMax() + "%";
-                txtPercentage.setText(percentage);
+                try {
+                    String percentage = (long) progress * 100 / (long) seekBar.getMax() + "%";
+                    txtPercentage.setText(percentage);
+                } catch (ArithmeticException ignored) {}
                 if (mediaPlayerService.timeoutSet()) {
                     timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
                 }
@@ -204,7 +210,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         if (coverImage != null) {
             imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
         }
-        setUiPlayingState();
     }
 
     private void pauseSeekBar() {
@@ -252,8 +257,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             getOnBackPressedDispatcher().onBackPressed();
             String x = "";
         } else if (itemId == R.id.navCurrentBook) {
-            String x = "";
-        } else if (itemId == R.id.navAddBook) {
             String x = "";
         }
         playerDrawerLayout.closeDrawer(GravityCompat.START);

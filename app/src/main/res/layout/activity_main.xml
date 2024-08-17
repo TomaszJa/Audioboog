@@ -50,7 +50,8 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:background="@color/colorPrimary">
 
             <ImageButton
                 android:id="@+id/hbtnpause"
@@ -58,7 +59,7 @@
                 android:layout_height="60dp"
                 android:layout_centerVertical="true"
                 android:layout_marginEnd="10dp"
-                android:layout_toStartOf="@+id/hbtnnext"
+                android:layout_toStartOf="@+id/buttonForward"
                 android:scaleType="fitCenter"
                 app:tint="@color/colorText"
                 android:src="@drawable/ic_play"
@@ -67,7 +68,7 @@
             </ImageButton>
 
             <ImageButton
-                android:id="@+id/hbtnnext"
+                android:id="@+id/buttonForward"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_alignParentEnd="true"
@@ -75,21 +76,21 @@
                 android:scaleType="fitCenter"
                 android:layout_marginEnd="10dp"
                 app:tint="@color/colorText"
-                android:src="@drawable/ic_next"
+                android:src="@drawable/ic_forward_10"
                 android:background="@null">
 
             </ImageButton>
 
             <ImageButton
-                android:id="@+id/hbtnprev"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:id="@+id/buttonRewind"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_centerVertical="true"
                 android:scaleType="fitCenter"
                 android:layout_marginEnd="10dp"
                 android:layout_toStartOf="@+id/hbtnpause"
                 app:tint="@color/colorText"
-                android:src="@drawable/ic_previous"
+                android:src="@drawable/ic_replay_10"
                 android:background="@null">
 
             </ImageButton>
@@ -98,7 +99,7 @@
                 android:id="@+id/txtnp"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_toStartOf="@+id/hbtnprev"
+                android:layout_toStartOf="@+id/buttonRewind"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"
                 android:padding="10dp"

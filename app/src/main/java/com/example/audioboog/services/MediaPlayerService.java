@@ -33,7 +33,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     ScheduledExecutorService databaseUpdater;
     CountDownTimer timeout;
     long remainingTimeout;
-    SharedPreferences sharedPreferences;
     Uri mediaUri;
     String filename;
 
@@ -49,7 +48,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public int onStartCommand(Intent intent, int flags, int startId) {
-        sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         bindDatabaseService();
         return START_STICKY;
     }
@@ -146,6 +144,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
+    public Audiobook getCurrentAudiobook() {
+        return audiobook;
+    }
+
     private String getNameFromUri() {
         String file = "";
         if (mediaUri == null) return file;
@@ -173,7 +175,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.release();
             mediaPlayer = null;
         }
-        sharedPreferences.edit().putString("created", "false").apply();
+        audiobook = null;
     }
 
     public void playOrPause() {
@@ -219,23 +221,25 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public boolean playNextChapter() {
+        mediaPlayer.pause();
         Chapter nextChapter = audiobook.getNextChapter();
         if (audiobook != null && mediaPlayer != null && nextChapter != null) {
             nextChapter.setCurrentPosition(0);
-            audiobook.setNextChapterAsCurrent();
             playMedia(nextChapter.getPath());
+            audiobook.setNextChapterAsCurrent();
             return true;
         }
         return false;
     }
 
     public boolean playPreviousChapter() {
+        mediaPlayer.pause();
         if (audiobook != null && mediaPlayer != null) {
             Chapter chapter = audiobook.getPreviousChapter();
             if (chapter != null) {
                 chapter.setCurrentPosition(0);
-                audiobook.setPreviousChapterAsCurrent();
                 playMedia(chapter.getPath());
+                audiobook.setPreviousChapterAsCurrent();
                 return true;
             }
         }
