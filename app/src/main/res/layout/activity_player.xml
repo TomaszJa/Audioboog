@@ -303,26 +303,41 @@
             app:layout_constraintTop_toTopOf="parent"
             app:tint="@color/colorText" />
 
+        <RelativeLayout
+            android:id="@+id/titleLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toStartOf="@id/next_button"
+            app:layout_constraintStart_toEndOf="@id/previous_button"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
         <TextView
             android:id="@+id/txtsn"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="marquee"
             android:marqueeRepeatLimit="marquee_forever"
-            android:padding="10dp"
+            android:padding="5dp"
             android:singleLine="true"
             android:textAlignment="center"
             android:textColor="@color/colorText"
             android:textSize="24sp"
             android:textStyle="italic"
-            android:text="@string/audio_name"
-            tools:layout_editor_absoluteX="32dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/next_button"
-            app:layout_constraintStart_toEndOf="@id/previous_button"
-            app:layout_constraintTop_toTopOf="parent">
+            android:text="@string/audio_name"/>
 
-        </TextView>
+        <TextView
+            android:id="@+id/chapterTimeoutText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/txtsn"
+            android:singleLine="true"
+            android:textAlignment="center"
+            android:textColor="@color/colorText"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:text="@string/chapterTimeout"/>
+        </RelativeLayout>
 
         <ImageButton
             android:id="@+id/next_button"

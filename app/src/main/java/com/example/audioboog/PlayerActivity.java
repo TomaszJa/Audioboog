@@ -47,18 +47,16 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button,
             playbackSpeedButton, timeoutButton;
-    TextView txtsname, txtsstart, txtsstop, txtPercentage, playbackSpeedText, timeoutDuration;
+    TextView txtsname, txtsstart, txtsstop, txtPercentage, playbackSpeedText, timeoutDuration, chapterTimeout;
     SeekBar seekBar;
     ScheduledExecutorService seekbarTimer;
 
     String songName;
     ImageView imageView;
-    public static final String EXTRA_NAME = "song_name";
 
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
-    int position;
 
     ArrayList<File> mySongs;
 
@@ -80,6 +78,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         initializeSeekBar();
 
         txtsname.setOnClickListener(v -> pickChapter());
+        chapterTimeout.setOnClickListener(v -> pickChapter());
 
         play_button.setOnClickListener(v -> {
             if (mediaServiceBound) {
@@ -162,6 +161,8 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                     timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
                 }
                 if (songName != null && !songName.equals(mediaPlayerService.getCurrentChapter().getName())) setUiForNewAudio();
+                String chapterTimeoutText = "Ends in: " + convertPlayingTimeToString(mediaPlayerService.getTimeToTheEndOfChapter());
+                chapterTimeout.setText(chapterTimeoutText);
             }
 
             @Override
@@ -249,6 +250,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         playbackSpeedText = findViewById(R.id.playbackSpeedText);
         timeoutDuration = findViewById(R.id.timeoutDuration);
         imageView = findViewById(R.id.imageview);
+        chapterTimeout = findViewById(R.id.chapterTimeoutText);
 
         toolbar = findViewById(R.id.player_toolbar);
         setSupportActionBar(toolbar);

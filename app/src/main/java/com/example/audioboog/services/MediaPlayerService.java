@@ -310,6 +310,13 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         timeout.start();
     }
 
+    public int getTimeToTheEndOfChapter() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getDuration() - mediaPlayer.getCurrentPosition();
+        }
+        return 0;
+    }
+
     public long getRemainingTimeout() {
         return remainingTimeout;
     }
