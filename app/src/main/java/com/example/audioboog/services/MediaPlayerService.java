@@ -1,5 +1,9 @@
 package com.example.audioboog.services;
 
+import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
+import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
+import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
+
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -8,12 +12,15 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -39,6 +46,23 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     Audiobook audiobook;
     DatabaseService databaseService;
     boolean databaseServiceBound;
+    ActionPlaying actionPlaying;
+
+    AudioManager audioManager;
+    AudioAttributes playbackAttributes;
+    AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = new AudioManager.OnAudioFocusChangeListener() {
+        @Override
+        public void onAudioFocusChange(int focusChange) {
+            if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+                if (isPlaying()) startMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                if (isPlaying()) pauseMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                if (isPlaying()) pauseMediaPlayer();
+            }
+        }
+    };
+    int audioFocusRequest;
 
     public class LocalBinder extends Binder {
         public MediaPlayerService getService() {
@@ -47,10 +71,42 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    @Override
+    public void onCreate() {
+        super.onCreate();
         bindDatabaseService();
         playbackSpeed = 1.0f;
+    }
+
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent.getStringExtra("myActionName");
+        if (action != null) {
+            switch (action) {
+                case ACTION_FORWARD:
+                    actionPlaying.forwardClicked();
+                    break;
+                case ACTION_REVERT:
+                    actionPlaying.rewindClicked();
+                    break;
+                case ACTION_PLAY:
+                    actionPlaying.playClicked();
+                    break;
+            }
+        }
         return START_STICKY;
+    }
+
+    private void getAudioFocus() {
+        AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(playbackAttributes)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                .build();
+        audioFocusRequest = audioManager.requestAudioFocus(focusRequest);
+    }
+
+    public void setCallback(ActionPlaying actionPlaying) {
+        this.actionPlaying = actionPlaying;
     }
 
     private void bindDatabaseService() {
@@ -134,13 +190,19 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public void createMediaPlayer(Uri uri) {
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+        // initiate the audio playback attributes
+        playbackAttributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
+
+        // set the playback attributes for the focus requester
+        getAudioFocus();
+
         mediaPlayer = new MediaPlayer();
-        mediaPlayer.setAudioAttributes(
-                new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-        );
+        mediaPlayer.setAudioAttributes(playbackAttributes);
         try {
             mediaPlayer.setDataSource(getApplicationContext(), uri);
             mediaPlayer.setOnPreparedListener(this);
@@ -167,6 +229,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public void playOrPause() {
         if (mediaPlayer != null) {
+            getAudioFocus();
             if (mediaPlayer.isPlaying()) {
                 pauseMediaPlayer();
             } else {
@@ -175,11 +238,11 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    private void startMediaPlayer() {
+    public void startMediaPlayer() {
         mediaPlayer.start();
     }
 
-    private void pauseMediaPlayer() {
+    public void pauseMediaPlayer() {
         mediaPlayer.pause();
     }
 

@@ -1,8 +1,16 @@
 package com.example.audioboog;
 
+import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
+import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
+import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
+import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_2;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
@@ -10,12 +18,16 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
+import android.media.session.MediaSession;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
+import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -35,6 +47,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -46,8 +59,10 @@ import androidx.appcompat.widget.SearchView;
 import android.widget.TextView;
 
 import com.example.audioboog.dialogs.AudiobookOptions;
+import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.services.NotificationReceiver;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.google.android.material.navigation.NavigationView;
@@ -105,6 +120,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         listView = findViewById(R.id.listViewSong);
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
+        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_LOCATION);
+        }
 
         buttonForward = findViewById(R.id.buttonForward);
         buttonRewind = findViewById(R.id.buttonRewind);

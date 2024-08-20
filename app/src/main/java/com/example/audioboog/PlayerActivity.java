@@ -1,13 +1,23 @@
 package com.example.audioboog;
 
+import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
+import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
+import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
+import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_2;
+
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.ServiceConnection;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.support.v4.media.session.MediaSessionCompat;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
@@ -20,6 +30,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -27,7 +38,10 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.example.audioboog.dialogs.OptionsPicker;
+import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.services.NotificationReceiver;
+import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.example.audioboog.source.ChaptersCollection;
 import com.example.audioboog.source.PlaybackSpeed;
@@ -40,7 +54,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class PlayerActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
+public class PlayerActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, ActionPlaying {
     private DrawerLayout playerDrawerLayout;
     NavigationView navigationView;
     Toolbar toolbar;
@@ -57,8 +71,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
-
-    ArrayList<File> mySongs;
+    MediaSessionCompat mediaSession;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +83,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+        mediaSession = new MediaSessionCompat(this, "PlayerAudio");
 
         InitializeGuiElements();
         txtsname.setSelected(true);
@@ -139,11 +153,13 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     private void setGuiMediaPaused() {
         play_button.setImageResource(R.drawable.ic_play);
+        showNotification(R.drawable.ic_play);
         pauseSeekBar();
     }
 
     private void setGuiMediaPlaying() {
         play_button.setImageResource(R.drawable.ic_pause);
+        showNotification(R.drawable.ic_pause);
         startSeekBar();
     }
 
@@ -341,6 +357,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 mediaServiceBound = true;
                 setUiForNewAudio();
                 if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
+                mediaPlayerService.setCallback(PlayerActivity.this);
             }
         }
 
@@ -396,5 +413,61 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     private void bindMediaPlayerService() {
         Intent intent = new Intent(PlayerActivity.this, MediaPlayerService.class);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    public void forwardClicked() {
+        if (!mediaServiceBound) return;
+        mediaPlayerService.fastForward();
+    }
+
+    @Override
+    public void rewindClicked() {
+        if (!mediaServiceBound) return;
+        mediaPlayerService.fastRewind();
+    }
+
+    @Override
+    public void playClicked() {
+        if (!mediaServiceBound) return;
+        mediaPlayerService.playOrPause();
+        setUiPlayingState();
+    }
+
+    public void showNotification(int playPauseBtn) {
+        Intent intent = new Intent(this, MainActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent rewindIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_REVERT);
+        PendingIntent rewindPendingIntent = PendingIntent.getBroadcast(this, 0, rewindIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent playIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_PLAY);
+        PendingIntent playPendingIntent = PendingIntent.getBroadcast(this, 0, playIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent forwardIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_FORWARD);
+        PendingIntent forwardPendingIntent = PendingIntent.getBroadcast(this, 0, forwardIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
+
+        byte[] art = audiobook.getEmbeddedPicture();
+        Bitmap image = BitmapFactory.decodeByteArray(art, 0, art.length);
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID_2)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setLargeIcon(image)
+                .setContentTitle(audiobook.getName())
+                .setContentText(audiobook.getCurrentChapter().getName())
+                .addAction(R.drawable.ic_replay_10, "fast_rewind", rewindPendingIntent)
+                .addAction(playPauseBtn, "play", playPendingIntent)
+                .addAction(R.drawable.ic_forward_10, "fast_forward", forwardPendingIntent)
+                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                        .setMediaSession(mediaSession.getSessionToken()))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(contentIntent)
+                .setOnlyAlertOnce(true)
+                .build();
+
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.notify(0, notification);
     }
 }
