@@ -178,7 +178,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
         if (!playNextChapter()) {
-            if (timeout != null) timeout.cancel();
+            cancelTimeout();
         }
     }
 
@@ -219,12 +219,19 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void releaseMediaPlayer() {
         stopUpdatingAudiobook();
         if (timer != null) timer.shutdown();
-        if (timeout != null) timeout.cancel();
+        cancelTimeout();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
         }
         audiobook = null;
+    }
+
+    public void cancelTimeout() {
+        if (timeout != null) {
+            timeout.cancel();
+            timeout = null;
+        }
     }
 
     public void playOrPause() {

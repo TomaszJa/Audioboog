@@ -345,6 +345,11 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                 pickTimeout.dismiss();
             }
         });
+        pickTimeout.setCancelListener(v -> {
+            if (!mediaServiceBound) return;
+            mediaPlayerService.cancelTimeout();
+            timeoutDuration.setText(convertPlayingTimeToString((0)));
+        });
         pickTimeout.show();
     }
 
