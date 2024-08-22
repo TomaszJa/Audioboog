@@ -71,7 +71,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
-    MediaSessionCompat mediaSession;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +82,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-        mediaSession = new MediaSessionCompat(this, "PlayerAudio");
 
         InitializeGuiElements();
         txtsname.setSelected(true);
@@ -153,13 +151,11 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     private void setGuiMediaPaused() {
         play_button.setImageResource(R.drawable.ic_play);
-        showNotification(R.drawable.ic_play);
         pauseSeekBar();
     }
 
     private void setGuiMediaPlaying() {
         play_button.setImageResource(R.drawable.ic_pause);
-        showNotification(R.drawable.ic_pause);
         startSeekBar();
     }
 
@@ -437,42 +433,5 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         if (!mediaServiceBound) return;
         mediaPlayerService.playOrPause();
         setUiPlayingState();
-    }
-
-    public void showNotification(int playPauseBtn) {
-        Intent intent = new Intent(this, MainActivity.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-
-        Intent rewindIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_REVERT);
-        PendingIntent rewindPendingIntent = PendingIntent.getBroadcast(this, 0, rewindIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        Intent playIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_PLAY);
-        PendingIntent playPendingIntent = PendingIntent.getBroadcast(this, 0, playIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        Intent forwardIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_FORWARD);
-        PendingIntent forwardPendingIntent = PendingIntent.getBroadcast(this, 0, forwardIntent, PendingIntent.FLAG_IMMUTABLE);
-
-        Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
-
-        byte[] art = audiobook.getEmbeddedPicture();
-        Bitmap image = BitmapFactory.decodeByteArray(art, 0, art.length);
-
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID_2)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setLargeIcon(image)
-                .setContentTitle(audiobook.getName())
-                .setContentText(audiobook.getCurrentChapter().getName())
-                .addAction(R.drawable.ic_replay_10, "fast_rewind", rewindPendingIntent)
-                .addAction(playPauseBtn, "play", playPendingIntent)
-                .addAction(R.drawable.ic_forward_10, "fast_forward", forwardPendingIntent)
-                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
-                        .setMediaSession(mediaSession.getSessionToken()))
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setContentIntent(contentIntent)
-                .setOnlyAlertOnce(true)
-                .build();
-
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.notify(0, notification);
     }
 }

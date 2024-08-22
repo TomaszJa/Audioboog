@@ -15,6 +15,7 @@ import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -47,7 +48,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -59,7 +59,6 @@ import androidx.appcompat.widget.SearchView;
 import android.widget.TextView;
 
 import com.example.audioboog.dialogs.AudiobookOptions;
-import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.services.NotificationReceiver;
@@ -121,7 +120,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         listView = findViewById(R.id.listViewSong);
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK);
             requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_LOCATION);
         }
 
@@ -183,7 +184,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void initializeMediaPlayerService() {
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        startService(intent);
+        startForegroundService(intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
