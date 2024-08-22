@@ -3,7 +3,7 @@ package com.example.audioboog.services;
 import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
 import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
 import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
-import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_2;
+import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_1;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -56,8 +56,8 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     ActionPlaying actionPlaying;
 
     MediaSessionCompat mediaSession;
-    AudioManager audioManager;
     AudioAttributes playbackAttributes;
+    AudioManager audioManager;
     AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = focusChange -> {
         if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
             if (isPlaying()) startMediaPlayer();
@@ -83,6 +83,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         super.onCreate();
         bindDatabaseService();
         createMediaSession();
+        createAudioManager();
         playbackSpeed = 1.0f;
     }
 
@@ -144,7 +145,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
         Bitmap image = Utils.convertEmbeddedPictureToBitmap(this, audiobook.getEmbeddedPicture());
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID_2)
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID_1)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setLargeIcon(image)
                 .setContentTitle(audiobook.getName())
@@ -209,6 +210,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             }
             updateAudiobookInDatabase();
             setPlaybackSpeed(playbackSpeed);
+            showNotification(R.drawable.ic_pause);
         }
     }
 
@@ -262,7 +264,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     }
 
     public void createMediaPlayer(Uri uri) {
-        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         playbackAttributes = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -278,6 +279,19 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             mediaPlayer.prepare();
         } catch (IOException ignored) {
         }
+    }
+
+    private void createAudioManager() {
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioFocusChangeListener = focusChange -> {
+            if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+                if (isPlaying()) startMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                if (isPlaying()) pauseMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                if (isPlaying()) pauseMediaPlayer();
+            }
+        };
     }
 
     public Audiobook getCurrentAudiobook() {

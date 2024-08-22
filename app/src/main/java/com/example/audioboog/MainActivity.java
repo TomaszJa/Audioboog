@@ -1,34 +1,22 @@
 package com.example.audioboog;
 
-import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
-import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
-import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
-import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_2;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
-import android.media.session.MediaSession;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -61,7 +49,6 @@ import android.widget.TextView;
 import com.example.audioboog.dialogs.AudiobookOptions;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
-import com.example.audioboog.services.NotificationReceiver;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.google.android.material.navigation.NavigationView;
@@ -132,12 +119,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         searchView=findViewById(R.id.searchView);
 
         searchView.setOnClickListener(v -> searchView.onActionViewExpanded());
-
-
-        if (savedInstanceState != null) {
-            Intent i = getIntent();
-            Bundle bundle = i.getExtras();
-        }
 
         txtnp.setOnClickListener(v -> {
             if (mediaServiceBound) {

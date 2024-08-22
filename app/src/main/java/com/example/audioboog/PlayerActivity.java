@@ -1,25 +1,13 @@
 package com.example.audioboog;
 
-import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
-import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
-import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
-import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_2;
-
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.ServiceConnection;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.support.v4.media.session.MediaSessionCompat;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.SeekBar;
@@ -30,7 +18,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -40,15 +27,12 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.MediaPlayerService;
-import com.example.audioboog.services.NotificationReceiver;
-import com.example.audioboog.source.Audiobook;
-import com.example.audioboog.source.Chapter;
 import com.example.audioboog.source.ChaptersCollection;
 import com.example.audioboog.source.PlaybackSpeed;
 import com.example.audioboog.source.Timeout;
+import com.example.audioboog.utils.Utils;
 import com.google.android.material.navigation.NavigationView;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -59,17 +43,16 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     NavigationView navigationView;
     Toolbar toolbar;
 
-    ImageButton play_button, previous_button, next_button, fast_forward_button, fast_rewind_button,
+    ImageButton playButton, previousButton, nextButton, fastForwardButton, fastRewindButton,
             playbackSpeedButton, timeoutButton;
-    TextView txtsname, txtsstart, txtsstop, txtPercentage, playbackSpeedText, timeoutDuration, chapterTimeout;
+    TextView chapterNameTxt, startTxt, stopTxt, percentageTxt, playbackSpeedTxt, timeoutDurationTxt, chapterTimeoutTxt;
     SeekBar seekBar;
     ScheduledExecutorService seekbarTimer;
 
-    String songName;
-    ImageView imageView;
+    String chapterName;
+    ImageView bookCoverImgView;
 
     MediaPlayerService mediaPlayerService;
-    SharedPreferences sharedPreferences;
     boolean mediaServiceBound;
 
     @Override
@@ -84,21 +67,20 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         });
 
         InitializeGuiElements();
-        txtsname.setSelected(true);
-
-        sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         initializeSeekBar();
+        setClickListeners();
+    }
 
-        txtsname.setOnClickListener(v -> pickChapter());
-        chapterTimeout.setOnClickListener(v -> pickChapter());
-
-        play_button.setOnClickListener(v -> {
+    private void setClickListeners() {
+        chapterNameTxt.setOnClickListener(v -> pickChapter());
+        chapterTimeoutTxt.setOnClickListener(v -> pickChapter());
+        playButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.playOrPause();
                 setUiPlayingState();
             }
         });
-        next_button.setOnClickListener(v -> {
+        nextButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 setGuiMediaPaused();
                 if (mediaPlayerService.playNextChapter()) {
@@ -106,9 +88,8 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                     setGuiMediaPlaying();
                 }
             }
-
         });
-        previous_button.setOnClickListener(v -> {
+        previousButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 setGuiMediaPaused();
                 if (mediaPlayerService.playPreviousChapter()) {
@@ -128,13 +109,13 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             }
         });
 
-        fast_forward_button.setOnClickListener(v -> {
+        fastForwardButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.fastForward();
             }
         });
 
-        fast_rewind_button.setOnClickListener(v -> {
+        fastRewindButton.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.fastRewind();
             }
@@ -150,12 +131,12 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     }
 
     private void setGuiMediaPaused() {
-        play_button.setImageResource(R.drawable.ic_play);
+        playButton.setImageResource(R.drawable.ic_play);
         pauseSeekBar();
     }
 
     private void setGuiMediaPlaying() {
-        play_button.setImageResource(R.drawable.ic_pause);
+        playButton.setImageResource(R.drawable.ic_pause);
         startSeekBar();
     }
 
@@ -164,17 +145,29 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (!mediaServiceBound) return;
-                txtsstart.setText(convertPlayingTimeToString(progress));
-                try {
-                    String percentage = (long) progress * 100 / (long) seekBar.getMax() + "%";
-                    txtPercentage.setText(percentage);
-                } catch (ArithmeticException ignored) {}
+                startTxt.setText(Utils.convertPlayingTimeToString(progress));
+                setPercentageProgress(seekBar, progress);
+                calculateTimeout();
+                setChapterInfo();
+            }
+
+            private void setChapterInfo() {
+                if (chapterName != null && !chapterName.equals(mediaPlayerService.getCurrentChapter().getName())) setUiForNewAudio();
+                String chapterTimeoutText = "Ends in: " + Utils.convertPlayingTimeToString(mediaPlayerService.getTimeToTheEndOfChapter());
+                chapterTimeoutTxt.setText(chapterTimeoutText);
+            }
+
+            private void calculateTimeout() {
                 if (mediaPlayerService.timeoutSet()) {
-                    timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+                    timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
                 }
-                if (songName != null && !songName.equals(mediaPlayerService.getCurrentChapter().getName())) setUiForNewAudio();
-                String chapterTimeoutText = "Ends in: " + convertPlayingTimeToString(mediaPlayerService.getTimeToTheEndOfChapter());
-                chapterTimeout.setText(chapterTimeoutText);
+            }
+
+            private void setPercentageProgress(SeekBar seekBar, long progress) {
+                try {
+                    String percentage = progress * 100 / (long) seekBar.getMax() + "%";
+                    percentageTxt.setText(percentage);
+                } catch (ArithmeticException ignored) {}
             }
 
             @Override
@@ -203,35 +196,21 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         }, 10, 1000, TimeUnit.MILLISECONDS);
     }
 
-    private String convertPlayingTimeToString(int milliseconds) {
-        long secs = TimeUnit.SECONDS.convert(milliseconds, TimeUnit.MILLISECONDS);
-        long mins = TimeUnit.MINUTES.convert(secs, TimeUnit.SECONDS);
-        long hours = TimeUnit.HOURS.convert(mins, TimeUnit.MINUTES);
-
-        secs = secs - (mins * 60);
-        mins = mins - (hours * 60);
-
-        String hoursString = ((hours < 10) ? ("0" + hours) : hours).toString();
-        String minsString = ((mins < 10) ? ("0" + mins) : mins).toString();
-        String secsString = ((secs < 10) ? ("0" + secs) : secs).toString();
-        return hoursString + ":" + minsString + ":" + secsString;
-    }
-
     private void setUiForNewAudio() {
         if (!mediaServiceBound) return;
         int duration = mediaPlayerService.getDuration();
         seekBar.setMax(duration);
-        txtsstop.setText(convertPlayingTimeToString(duration));
-        songName = mediaPlayerService.getCurrentChapter().getName();
-        txtsname.setText(songName);
+        stopTxt.setText(Utils.convertPlayingTimeToString(duration));
+        chapterName = mediaPlayerService.getCurrentChapter().getName();
+        chapterNameTxt.setText(chapterName);
         byte[] coverImage = mediaPlayerService.getCover();
         if (coverImage != null) {
-            imageView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
+            bookCoverImgView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
         }
         String playbackSpeed = mediaPlayerService.getPlaybackSpeed() + "x";
-        playbackSpeedText.setText(playbackSpeed);
+        playbackSpeedTxt.setText(playbackSpeed);
         if (mediaPlayerService.timeoutSet()) {
-            timeoutDuration.setText(convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+            timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
         }
     }
 
@@ -239,7 +218,10 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         if (seekbarTimer != null) {
             seekbarTimer.shutdown();
             try {
-                if (!seekbarTimer.isShutdown()) while (!seekbarTimer.awaitTermination(1, TimeUnit.SECONDS)) ;
+                if (!seekbarTimer.isShutdown()) {
+                    boolean shutdown = true;
+                    while (shutdown) shutdown = !seekbarTimer.awaitTermination(1, TimeUnit.SECONDS);
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -247,27 +229,28 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     }
 
     private void InitializeGuiElements() {
-        play_button = findViewById(R.id.playButton);
-        previous_button = findViewById(R.id.previous_button);
-        next_button = findViewById(R.id.next_button);
-        fast_forward_button = findViewById(R.id.fast_forward_button);
-        fast_rewind_button = findViewById(R.id.fast_rewind_button);
+        playButton = findViewById(R.id.playButton);
+        previousButton = findViewById(R.id.previous_button);
+        nextButton = findViewById(R.id.next_button);
+        fastForwardButton = findViewById(R.id.fast_forward_button);
+        fastRewindButton = findViewById(R.id.fast_rewind_button);
         playbackSpeedButton = findViewById(R.id.playback_speed_button);
         timeoutButton = findViewById(R.id.timeoutButton);
-        txtsname = findViewById(R.id.txtsn);
-        txtsstart = findViewById(R.id.txtsstart);
-        txtPercentage = findViewById(R.id.text_percentage);
-        txtsstop = findViewById(R.id.txtsstop);
+        chapterNameTxt = findViewById(R.id.txtsn);
+        startTxt = findViewById(R.id.txtsstart);
+        percentageTxt = findViewById(R.id.text_percentage);
+        stopTxt = findViewById(R.id.txtsstop);
         seekBar = findViewById(R.id.seekbar);
-        playbackSpeedText = findViewById(R.id.playbackSpeedText);
-        timeoutDuration = findViewById(R.id.timeoutDuration);
-        imageView = findViewById(R.id.imageview);
-        chapterTimeout = findViewById(R.id.chapterTimeoutText);
-
+        playbackSpeedTxt = findViewById(R.id.playbackSpeedText);
+        timeoutDurationTxt = findViewById(R.id.timeoutDuration);
+        bookCoverImgView = findViewById(R.id.imageview);
+        chapterTimeoutTxt = findViewById(R.id.chapterTimeoutText);
         toolbar = findViewById(R.id.player_toolbar);
-        setSupportActionBar(toolbar);
         playerDrawerLayout = findViewById(R.id.player_drawer_layout);
         navigationView = findViewById(R.id.player_nav_view);
+
+        chapterNameTxt.setSelected(true);
+        setSupportActionBar(toolbar);
         navigationView.setNavigationItemSelectedListener(this);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, playerDrawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         playerDrawerLayout.addDrawerListener(toggle);
@@ -298,7 +281,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             PlaybackSpeed speed = playbackValues.get(pickPlaybackSpeed.getPickedValue());
             if (mediaServiceBound) {
                 mediaPlayerService.setPlaybackSpeed(speed.getValue());
-                playbackSpeedText.setText(speed.getPlaybackString());
+                playbackSpeedTxt.setText(speed.getPlaybackString());
                 pickPlaybackSpeed.dismiss();
             }
         });
@@ -319,7 +302,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             if (mediaServiceBound) {
                 setGuiMediaPaused();
                 mediaPlayerService.playSelectedChapter(chapter.getChapter().getUid());
-                txtsname.setText(chapter.getChapter().getName());
+                chapterNameTxt.setText(chapter.getChapter().getName());
                 setGuiMediaPlaying();
                 pickChapter.dismiss();
             }
@@ -337,14 +320,14 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             Timeout timeout = timeoutValues.get(pickTimeout.getPickedValue());
             if (mediaServiceBound) {
                 mediaPlayerService.setTimeout(timeout.getValue());
-                timeoutDuration.setText(convertPlayingTimeToString(timeout.getValue()*60000));
+                timeoutDurationTxt.setText(Utils.convertPlayingTimeToString(timeout.getValue()*60000));
                 pickTimeout.dismiss();
             }
         });
         pickTimeout.setCancelListener(v -> {
             if (!mediaServiceBound) return;
             mediaPlayerService.cancelTimeout();
-            timeoutDuration.setText(convertPlayingTimeToString((0)));
+            timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((0)));
         });
         pickTimeout.show();
     }
@@ -367,21 +350,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             mediaServiceBound = false;
         }
     };
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    protected void onRestart() {
-        super.onRestart();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-    }
 
     @Override
     protected void onStop() {

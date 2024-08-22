@@ -122,6 +122,7 @@ public class Audiobook implements Parcelable {
         }
     }
 
+    @NonNull
     public String getUid() {
         return uid;
     }
