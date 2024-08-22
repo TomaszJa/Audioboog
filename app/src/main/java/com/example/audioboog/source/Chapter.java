@@ -27,25 +27,25 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
 
     @PrimaryKey
     @NonNull
-    private String uid;
+    private final String uid;
     @ColumnInfo(name = "audiobook_uid")
-    private String audiobookUid;
+    private final String audiobookUid;
     @ColumnInfo(name = "chapter_number")
-    private int chapterNumber;
+    private final int chapterNumber;
     @ColumnInfo(name = "name")
     private String name;
     @ColumnInfo(name = "book_name")
-    private String bookName;
+    private final String bookName;
     @ColumnInfo(name = "path")
     @TypeConverters(UriConverter.class)
     private Uri path;
     @ColumnInfo(name = "embedded_picture")
     @TypeConverters(ByteArrayConverter.class)
-    private byte[] embeddedPicture;
+    private final byte[] embeddedPicture;
     @ColumnInfo(name = "current_position")
     private long currentPosition;
     @ColumnInfo(name = "total_duration")
-    private long totalDuration;
+    private final long totalDuration;
     @ColumnInfo(name = "chapter_start")
     private long chapterStart;
 
@@ -110,14 +110,6 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         return audiobookUid;
     }
 
-    public void setUid(@NonNull String uid) {
-        this.uid = uid;
-    }
-
-    public void setChapterNumber(int chapterNumber) {
-        this.chapterNumber = chapterNumber;
-    }
-
     public long getChapterStart() {
         return chapterStart;
     }
@@ -138,24 +130,12 @@ public class Chapter implements Comparable<Chapter>, Parcelable {
         this.name = name;
     }
 
-    public void setBookName(String bookName) {
-        this.bookName = bookName;
-    }
-
     public void setPath(Uri path) {
         this.path = path;
     }
 
-    public void setEmbeddedPicture(byte[] embeddedPicture) {
-        this.embeddedPicture = embeddedPicture;
-    }
-
     public void setCurrentPosition(long currentPosition) {
         this.currentPosition = currentPosition;
-    }
-
-    public void setTotalDuration(long totalDuration) {
-        this.totalDuration = totalDuration;
     }
 
     public int getChapterNumber() {

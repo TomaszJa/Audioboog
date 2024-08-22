@@ -21,16 +21,6 @@ public interface AudiobookDao {
     @Query("SELECT * FROM audiobook WHERE uid = :uid")
     AudiobookWithChapters getAudiobookById(String uid);
 
-    @Query("SELECT * FROM audiobook WHERE uid IN (:audiobooksIds)")
-    List<Audiobook> loadAllByIds(String[] audiobooksIds);
-
-    @Query("SELECT * FROM audiobook WHERE name LIKE :bookName LIMIT 1")
-    Audiobook loadByBookName(String bookName);
-
-//    @Query("SELECT * FROM chapter WHERE name LIKE :first AND " +
-//            "last_name LIKE :last LIMIT 1")
-//    Chapter findByName(String first, String last);
-
     @Update
     void updateAudiobook(Audiobook audiobook);
 

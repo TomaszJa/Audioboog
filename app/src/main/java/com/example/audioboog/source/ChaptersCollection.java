@@ -5,8 +5,8 @@ import java.util.ArrayList;
 public class ChaptersCollection {
     private static ArrayList<ChaptersCollection> chaptersCollections;
 
-    private int id;
-    private Chapter chapter;
+    private final int id;
+    private final Chapter chapter;
 
     public ChaptersCollection(int id, Chapter chapter) {
         this.id = id;

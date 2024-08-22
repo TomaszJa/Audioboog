@@ -21,20 +21,16 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class DatabaseService extends Service {
     private final IBinder binder = new DatabaseService.LocalBinder();
     AppDatabase db;
     AudiobookDao audiobookDao;
     ChapterDao chapterDao;
-    ScheduledExecutorService timer;
     ExecutorService executorService;
 
     public class LocalBinder extends Binder {
         public DatabaseService getService() {
-            // Return this instance of LocalService so clients can call public methods
             return DatabaseService.this;
         }
     }

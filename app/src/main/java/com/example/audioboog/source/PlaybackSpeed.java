@@ -5,8 +5,8 @@ import java.util.ArrayList;
 public class PlaybackSpeed {
     private static ArrayList<PlaybackSpeed> playbackSpeeds;
 
-    private int id;
-    private float value;
+    private final int id;
+    private final float value;
 
     public PlaybackSpeed(int id, float value) {
         this.id = id;
@@ -14,7 +14,7 @@ public class PlaybackSpeed {
     }
 
     public static void initPlaybackSpeeds() {
-        playbackSpeeds = new ArrayList<PlaybackSpeed>();
+        playbackSpeeds = new ArrayList<>();
         for (int i = 50; i <= 200; i += 5) {
             float speed = (float) Math.round((float)i)/100;
             playbackSpeeds.add(new PlaybackSpeed((i-50)/5, speed));

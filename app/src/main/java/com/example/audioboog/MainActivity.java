@@ -13,6 +13,7 @@ import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.OpenableColumns;
@@ -105,6 +106,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         listView = findViewById(R.id.listViewSong);
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
+        requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK);
+            requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_LOCATION);
+        }
 
         buttonForward = findViewById(R.id.buttonForward);
         buttonRewind = findViewById(R.id.buttonRewind);
@@ -112,12 +119,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         searchView=findViewById(R.id.searchView);
 
         searchView.setOnClickListener(v -> searchView.onActionViewExpanded());
-
-
-        if (savedInstanceState != null) {
-            Intent i = getIntent();
-            Bundle bundle = i.getExtras();
-        }
 
         txtnp.setOnClickListener(v -> {
             if (mediaServiceBound) {
@@ -164,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void initializeMediaPlayerService() {
         Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        startService(intent);
+        startForegroundService(intent);
         bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
     }
 

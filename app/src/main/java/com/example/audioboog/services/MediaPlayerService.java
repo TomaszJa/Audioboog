@@ -1,24 +1,38 @@
 package com.example.audioboog.services;
 
+import static com.example.audioboog.services.ApplicationClass.ACTION_FORWARD;
+import static com.example.audioboog.services.ApplicationClass.ACTION_PLAY;
+import static com.example.audioboog.services.ApplicationClass.ACTION_REVERT;
+import static com.example.audioboog.services.ApplicationClass.CHANNEL_ID_1;
+
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
-import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.CountDownTimer;
 import android.os.IBinder;
-import android.provider.OpenableColumns;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.view.KeyEvent;
 
 import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+import androidx.media.session.MediaButtonReceiver;
 
+import com.example.audioboog.PlayerActivity;
+import com.example.audioboog.R;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
+import com.example.audioboog.utils.Utils;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -39,6 +53,23 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     Audiobook audiobook;
     DatabaseService databaseService;
     boolean databaseServiceBound;
+    ActionPlaying actionPlaying;
+
+    MediaSessionCompat mediaSession;
+    AudioAttributes playbackAttributes;
+    AudioManager audioManager;
+    AudioManager.OnAudioFocusChangeListener audioFocusChangeListener = focusChange -> {
+        if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+            if (isPlaying()) startMediaPlayer();
+        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+            if (isPlaying()) pauseMediaPlayer();
+        } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+            if (isPlaying()) {
+                pauseMediaPlayer();
+            }
+        }
+    };
+    int audioFocusRequest;
 
     public class LocalBinder extends Binder {
         public MediaPlayerService getService() {
@@ -47,10 +78,104 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    @Override
+    public void onCreate() {
+        super.onCreate();
         bindDatabaseService();
+        createMediaSession();
+        createAudioManager();
         playbackSpeed = 1.0f;
+    }
+
+    private void createMediaSession() {
+        mediaSession = new MediaSessionCompat(this, "MediaPlayerService");
+        mediaSession.setActive(true);
+        mediaSession.setCallback(new MediaSessionCompat.Callback() {
+            @Override
+            public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
+                KeyEvent keyEvent = MediaButtonReceiver.handleIntent(mediaSession, mediaButtonEvent);
+                switch (keyEvent.getKeyCode()) {
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        pauseMediaPlayer();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        startMediaPlayer();
+                        break;
+                }
+                return super.onMediaButtonEvent(mediaButtonEvent);
+            }
+        });
+    }
+
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent.getStringExtra("myActionName");
+        if (action != null) {
+            switch (action) {
+                case ACTION_FORWARD:
+                    actionPlaying.forwardClicked();
+                    break;
+                case ACTION_REVERT:
+                    actionPlaying.rewindClicked();
+                    break;
+                case ACTION_PLAY:
+                    actionPlaying.playClicked();
+                    if (isPlaying()) {
+                        showNotification(R.drawable.ic_pause);
+                    } else {
+                        showNotification(R.drawable.ic_play);
+                    }
+                    break;
+            }
+        }
         return START_STICKY;
+    }
+
+    public void showNotification(int playPauseBtn) {
+        Intent intent = new Intent(this, PlayerActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent rewindIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_REVERT);
+        PendingIntent rewindPendingIntent = PendingIntent.getBroadcast(this, 0, rewindIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent playIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_PLAY);
+        PendingIntent playPendingIntent = PendingIntent.getBroadcast(this, 0, playIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Intent forwardIntent = new Intent(this, NotificationReceiver.class).setAction(ACTION_FORWARD);
+        PendingIntent forwardPendingIntent = PendingIntent.getBroadcast(this, 0, forwardIntent, PendingIntent.FLAG_IMMUTABLE);
+
+        Bitmap image = Utils.convertEmbeddedPictureToBitmap(this, audiobook.getEmbeddedPicture());
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID_1)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setLargeIcon(image)
+                .setContentTitle(audiobook.getName())
+                .setSilent(true)
+                .setAllowSystemGeneratedContextualActions(false)
+                .setContentText(audiobook.getCurrentChapter().getName())
+                .addAction(R.drawable.ic_replay_10, "fast_rewind", rewindPendingIntent)
+                .addAction(playPauseBtn, "play", playPendingIntent)
+                .addAction(R.drawable.ic_forward_10, "fast_forward", forwardPendingIntent)
+                .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
+                        .setMediaSession(mediaSession.getSessionToken()))
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentIntent(contentIntent)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .build();
+        startForeground(1, notification);
+    }
+
+    private void getAudioFocus() {
+        AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(playbackAttributes)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                .build();
+        audioFocusRequest = audioManager.requestAudioFocus(focusRequest);
+    }
+
+    public void setCallback(ActionPlaying actionPlaying) {
+        this.actionPlaying = actionPlaying;
     }
 
     private void bindDatabaseService() {
@@ -85,6 +210,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
             }
             updateAudiobookInDatabase();
             setPlaybackSpeed(playbackSpeed);
+            showNotification(R.drawable.ic_pause);
         }
     }
 
@@ -122,7 +248,9 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     @Override
     public void onCompletion(MediaPlayer mediaPlayer) {
         if (!playNextChapter()) {
-            if (timeout != null) timeout.cancel();
+            cancelTimeout();
+            stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            stopSelf();
         }
     }
 
@@ -130,24 +258,40 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void onDestroy() {
         releaseMediaPlayer();
         unbindDatabaseService();
+        stopSelf();
+        mediaSession.release();
         super.onDestroy();
     }
 
     public void createMediaPlayer(Uri uri) {
+        playbackAttributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
+        getAudioFocus();
+
         mediaPlayer = new MediaPlayer();
-        mediaPlayer.setAudioAttributes(
-                new AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-        );
+        mediaPlayer.setAudioAttributes(playbackAttributes);
         try {
             mediaPlayer.setDataSource(getApplicationContext(), uri);
             mediaPlayer.setOnPreparedListener(this);
             mediaPlayer.setOnCompletionListener(this);
             mediaPlayer.prepare();
-        } catch (IOException e) {
+        } catch (IOException ignored) {
         }
+    }
+
+    private void createAudioManager() {
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioFocusChangeListener = focusChange -> {
+            if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+                if (isPlaying()) startMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                if (isPlaying()) pauseMediaPlayer();
+            } else if (focusChange == AudioManager.AUDIOFOCUS_LOSS) {
+                if (isPlaying()) pauseMediaPlayer();
+            }
+        };
     }
 
     public Audiobook getCurrentAudiobook() {
@@ -157,7 +301,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void releaseMediaPlayer() {
         stopUpdatingAudiobook();
         if (timer != null) timer.shutdown();
-        if (timeout != null) timeout.cancel();
+        cancelTimeout();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
@@ -165,8 +309,16 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         audiobook = null;
     }
 
+    public void cancelTimeout() {
+        if (timeout != null) {
+            timeout.cancel();
+            timeout = null;
+        }
+    }
+
     public void playOrPause() {
         if (mediaPlayer != null) {
+            getAudioFocus();
             if (mediaPlayer.isPlaying()) {
                 pauseMediaPlayer();
             } else {
@@ -175,12 +327,15 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         }
     }
 
-    private void startMediaPlayer() {
+    public void startMediaPlayer() {
         mediaPlayer.start();
+        showNotification(R.drawable.ic_pause);
     }
 
-    private void pauseMediaPlayer() {
+    public void pauseMediaPlayer() {
         mediaPlayer.pause();
+        showNotification(R.drawable.ic_play);
+        stopSelf();
     }
 
     public void fastForward() {
@@ -369,7 +524,10 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         if (databaseUpdater != null) {
             databaseUpdater.shutdown();
             try {
-                if (!databaseUpdater.isShutdown()) while (!databaseUpdater.awaitTermination(1, TimeUnit.SECONDS)) ;
+                if (!databaseUpdater.isShutdown()) {
+                    boolean shutdown = true;
+                    while (shutdown) shutdown = !databaseUpdater.awaitTermination(1, TimeUnit.SECONDS);
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
