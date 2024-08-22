@@ -87,24 +87,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+        audiobooks = new ArrayList<>();
         sharedPreferences = getSharedPreferences("sp", MODE_PRIVATE);
         currentAudiobookUid = sharedPreferences.getString("currently_playing", "");
         bindDatabaseService();
+        initializeUi();
+        requestPermissions();
+        setClickListeners();
+    }
+
+    private void initializeUi() {
         txtnp = findViewById(R.id.txtnp);
-
-        audiobooks = new ArrayList<>();
-
         toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
         drawerLayout = findViewById(R.id.drawer_layout);
-
         navigationView = findViewById(R.id.nav_view);
+        listView = findViewById(R.id.listViewSong);
+        buttonForward = findViewById(R.id.buttonForward);
+        buttonRewind = findViewById(R.id.buttonRewind);
+        hbtnpause = findViewById(R.id.hbtnpause);
+        searchView=findViewById(R.id.searchView);
+
+        setSupportActionBar(toolbar);
         navigationView.setNavigationItemSelectedListener(this);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
+    }
 
-        listView = findViewById(R.id.listViewSong);
+    private void requestPermissions() {
         requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO);
         requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
         requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE);
@@ -112,29 +122,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK);
             requestPermissionLauncher.launch(Manifest.permission.FOREGROUND_SERVICE_LOCATION);
         }
+    }
 
-        buttonForward = findViewById(R.id.buttonForward);
-        buttonRewind = findViewById(R.id.buttonRewind);
-        hbtnpause = findViewById(R.id.hbtnpause);
-        searchView=findViewById(R.id.searchView);
-
+    private void setClickListeners() {
         searchView.setOnClickListener(v -> searchView.onActionViewExpanded());
-
         txtnp.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 startPlayerActivity();
             }
         });
-
-
         hbtnpause.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.playOrPause();
                 setPlayOrPause();
             }
         });
-
-
         buttonForward.setOnClickListener(v -> {
             if (mediaServiceBound) {
                 mediaPlayerService.fastForward();
@@ -210,22 +212,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         bindService(intent, databaseConnection, Context.BIND_AUTO_CREATE);
     }
 
-    // Register the permissions callback, which handles the user's response to the
-    // system permissions dialog. Save the return value, an instance of
-    // ActivityResultLauncher, as an instance variable.
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new RequestPermission(), isGranted -> {
                 if (isGranted) {
                     Log.i("Permission: ", "Granted");
-                    // Permission is granted. Continue the action or workflow in your
-                    // app.
                 } else {
                     Log.i("Permission: ", "Denied");
-                    // Explain to the user that the feature is unavailable because the
-                    // feature requires a permission that the user has denied. At the
-                    // same time, respect the user's decision. Don't link to system
-                    // settings in an effort to convince the user to change their
-                    // decision.
                 }
             });
 
@@ -247,46 +239,50 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
-        listView.setOnItemClickListener((parent, view, position, id) -> {
-            songId = position;
-            String chosenAudiobookUid = audiobooks.get(position).getUid();
-            sharedPreferences.edit().putString("currently_playing", chosenAudiobookUid).apply();
-            playMedia();
-            startPlayerActivity();
+        listView.setOnItemClickListener((parent, view, position, id) -> listViewClickListener(position));
+        listView.setOnItemLongClickListener((parent, view, position, id) -> longListViewClickListener(position));
+    }
+
+    private void listViewClickListener(int position) {
+        songId = position;
+        String chosenAudiobookUid = audiobooks.get(position).getUid();
+        sharedPreferences.edit().putString("currently_playing", chosenAudiobookUid).apply();
+        playMedia();
+        startPlayerActivity();
+    }
+
+    private boolean longListViewClickListener(int position) {
+        Audiobook chosenAudiobook = audiobooks.get(position);
+        AudiobookOptions audiobookOptions = new AudiobookOptions(MainActivity.this, chosenAudiobook);
+        audiobookOptions.setDeleteButtonListener(v -> {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setCancelable(true);
+            builder.setTitle("Delete Audiobook");
+            builder.setMessage("Are you sure you want to delete " + chosenAudiobook.getName() + "?");
+            builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                        databaseService.deleteAudiobook(chosenAudiobook);
+                        audiobooks.remove(chosenAudiobook);
+                        audiobookOptions.dismiss();
+                        displaySongs();
+                    });
+            builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
+            AlertDialog dialog = builder.create();
+            dialog.show();
         });
-        listView.setOnItemLongClickListener((parent, view, position, id) -> {
-            Audiobook chosenAudiobook = audiobooks.get(position);
-            AudiobookOptions audiobookOptions = new AudiobookOptions(MainActivity.this, chosenAudiobook);
-            audiobookOptions.setDeleteButtonListener(v -> {
-                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-                builder.setCancelable(true);
-                builder.setTitle("Delete Audiobook");
-                builder.setMessage("Are you sure you want to delete " + chosenAudiobook.getName() + "?");
-                builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                            databaseService.deleteAudiobook(chosenAudiobook);
-                            audiobooks.remove(chosenAudiobook);
-                            audiobookOptions.dismiss();
-                            displaySongs();
-                        });
-                builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
-                AlertDialog dialog = builder.create();
-                dialog.show();
-            });
-            audiobookOptions.setResetButtonListener(v -> {
-                if (mediaServiceBound) {
-                    Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
-                    if (Objects.equals(audiobook.getUid(), chosenAudiobook.getUid())) {
-                        mediaPlayerService.releaseMediaPlayer();
-                    }
+        audiobookOptions.setResetButtonListener(v -> {
+            if (mediaServiceBound) {
+                Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
+                if (Objects.equals(audiobook.getUid(), chosenAudiobook.getUid())) {
+                    mediaPlayerService.releaseMediaPlayer();
                 }
-                chosenAudiobook.resetAudiobook();
-                databaseService.updateAudiobook(chosenAudiobook);
-                audiobookOptions.dismiss();
-                displaySongs();
-            });
-            audiobookOptions.show();
-            return true;
+            }
+            chosenAudiobook.resetAudiobook();
+            databaseService.updateAudiobook(chosenAudiobook);
+            audiobookOptions.dismiss();
+            displaySongs();
         });
+        audiobookOptions.show();
+        return true;
     }
 
     private void playMedia() {
@@ -339,12 +335,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         addAudioFilesResultLauncher.launch(intent);
     }
 
-    // You can do the assignment inside onAttach or onCreate, i.e, before the activity is displayed
     ActivityResultLauncher<Intent> addAudioFilesResultLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK) {
-                    // There are no request codes
                     Intent data = result.getData();
                     if (data != null) {
                         Audiobook audiobook = new Audiobook();
