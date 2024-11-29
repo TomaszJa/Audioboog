@@ -35,9 +35,9 @@
         <service android:name=".services.MediaPlayerService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-            </intent-filter>
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MEDIA_BUTTON" />-->
+<!--            </intent-filter>-->
         </service>
         <service android:name=".services.DatabaseService"/>
         <receiver android:name=".services.NotificationReceiver"
