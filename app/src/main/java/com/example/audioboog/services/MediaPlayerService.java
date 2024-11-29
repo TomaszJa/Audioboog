@@ -26,7 +26,6 @@ import android.view.KeyEvent;
 
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
-import androidx.media.session.MediaButtonReceiver;
 
 import com.example.audioboog.PlayerActivity;
 import com.example.audioboog.R;
@@ -93,16 +92,21 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
         mediaSession.setCallback(new MediaSessionCompat.Callback() {
             @Override
             public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
-                KeyEvent keyEvent = MediaButtonReceiver.handleIntent(mediaSession, mediaButtonEvent);
+                KeyEvent keyEvent = mediaButtonEvent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent.class);
+                if (keyEvent == null) {
+                    return true;
+                }
                 switch (keyEvent.getKeyCode()) {
                     case KeyEvent.KEYCODE_MEDIA_PAUSE:
                         pauseMediaPlayer();
+                        mediaSession.setActive(false);
                         break;
                     case KeyEvent.KEYCODE_MEDIA_PLAY:
                         startMediaPlayer();
+                        mediaSession.setActive(true);
                         break;
                 }
-                return super.onMediaButtonEvent(mediaButtonEvent);
+                return true;
             }
         });
     }
@@ -335,7 +339,6 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void pauseMediaPlayer() {
         mediaPlayer.pause();
         showNotification(R.drawable.ic_play);
-        stopSelf();
     }
 
     public void fastForward() {
@@ -517,7 +520,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
                 audiobook.getCurrentChapter().setCurrentPosition(mediaPlayer.getCurrentPosition());
                 databaseService.updateAudiobookInDatabase(audiobook);
             }
-        }, 10, 10, TimeUnit.SECONDS);
+        }, 1, 1, TimeUnit.SECONDS);
     }
 
     private void stopUpdatingAudiobook() {
