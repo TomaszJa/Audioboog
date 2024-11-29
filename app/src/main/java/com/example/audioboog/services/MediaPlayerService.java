@@ -339,6 +339,7 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
     public void pauseMediaPlayer() {
         mediaPlayer.pause();
         showNotification(R.drawable.ic_play);
+        stopSelf();
     }
 
     public void fastForward() {
@@ -421,7 +422,9 @@ public class MediaPlayerService extends Service implements MediaPlayer.OnPrepare
 
     public int getCurrentPosition() {
         if (mediaPlayer != null) {
-            return (int)getCurrentChapter().getChapterStart() + mediaPlayer.getCurrentPosition();
+            int x = (int)getCurrentChapter().getChapterStart();
+            int y = mediaPlayer.getCurrentPosition();
+            return x + y;
         } else {
             return 0;
         }

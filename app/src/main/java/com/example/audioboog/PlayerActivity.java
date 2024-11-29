@@ -193,7 +193,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
                     seekBar.setProgress(mediaPlayerService.getCurrentPosition());
                 }
             }
-        }, 10, 1000, TimeUnit.MILLISECONDS);
+        }, 10, 300, TimeUnit.MILLISECONDS);
     }
 
     private void setUiForNewAudio() {
