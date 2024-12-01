@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.MenuItem;
@@ -23,17 +24,27 @@ import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.Player;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+import androidx.media3.ui.PlayerView;
 
 import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.services.PlaybackService;
+import com.example.audioboog.source.Chapter;
 import com.example.audioboog.source.ChaptersCollection;
 import com.example.audioboog.source.PlaybackSpeed;
 import com.example.audioboog.source.Timeout;
 import com.example.audioboog.utils.Utils;
 import com.google.android.material.navigation.NavigationView;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +65,8 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     MediaPlayerService mediaPlayerService;
     boolean mediaServiceBound;
+
+    PlayerView playerView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -248,6 +261,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         toolbar = findViewById(R.id.player_toolbar);
         playerDrawerLayout = findViewById(R.id.player_drawer_layout);
         navigationView = findViewById(R.id.player_nav_view);
+//        playerView = findViewById(R.id.player_view);
 
         chapterNameTxt.setSelected(true);
         setSupportActionBar(toolbar);
@@ -371,6 +385,41 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     @Override
     protected void onStart() {
         super.onStart();
+//        SessionToken sessionToken =
+//                new SessionToken(this, new ComponentName(this, PlaybackService.class));
+//        ListenableFuture<MediaController> controllerFuture =
+//                new MediaController.Builder(this, sessionToken).buildAsync();
+//        controllerFuture.addListener(() -> {
+//            // Call controllerFuture.get() to retrieve the MediaController.
+//            // MediaController implements the Player interface, so it can be
+//            // attached to the PlayerView UI component.
+//            try {
+////                playerView.setPlayer(controllerFuture.get());
+////                playerView.setUseController(false);
+//
+//                if (mediaServiceBound) {
+////                    mediaPlayerService.playOrPause();
+//                    setUiPlayingState();
+//                    for (Chapter chapter: mediaPlayerService.getCurrentAudiobook().getChapters()) {
+//                        Uri uri = chapter.getPath();
+//                        MediaItem item = MediaItem.fromUri(uri);
+//                        controllerFuture.get().addMediaItem(item);
+//                    }
+//                    controllerFuture.get().prepare();
+//                    controllerFuture.get().play();
+//                    long x = controllerFuture.get().getContentDuration();
+//                    long y = controllerFuture.get().getCurrentPosition();
+//                    long z = controllerFuture.get().getContentPosition();
+//                    int o = controllerFuture.get().getMediaItemCount();
+//                    String h = "";
+//                }
+//            } catch (ExecutionException e) {
+////                throw new RuntimeException(e);
+//            } catch (InterruptedException e) {
+////                throw new RuntimeException(e);
+//            }
+//        }, MoreExecutors.directExecutor());
+
         if (!mediaServiceBound) {
             bindMediaPlayerService();
 

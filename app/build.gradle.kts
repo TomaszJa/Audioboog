@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.audioboog"
-        minSdk = 33
+        minSdk = 34
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -33,6 +33,11 @@ android {
 
 dependencies {
     val roomVersion = "2.6.1"
+
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+    implementation("androidx.media3:media3-common:1.4.1")
+    implementation("androidx.media3:media3-session:1.4.1")
 
     implementation("androidx.media:media:1.7.0")
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
