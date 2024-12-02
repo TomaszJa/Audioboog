@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -16,6 +17,8 @@ import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -27,14 +30,17 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
+import androidx.media3.ui.DefaultTimeBar;
 import androidx.media3.ui.PlayerView;
 
 import com.example.audioboog.dialogs.OptionsPicker;
 import com.example.audioboog.services.ActionPlaying;
 import com.example.audioboog.services.MediaPlayerService;
 import com.example.audioboog.services.PlaybackService;
+import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.example.audioboog.source.ChaptersCollection;
 import com.example.audioboog.source.PlaybackSpeed;
@@ -51,7 +57,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class PlayerActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, ActionPlaying {
+@UnstableApi public class PlayerActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, ActionPlaying {
     private DrawerLayout playerDrawerLayout;
     NavigationView navigationView;
     Toolbar toolbar;
@@ -65,10 +71,11 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     String chapterName;
     ImageView bookCoverImgView;
 
-    MediaPlayerService mediaPlayerService;
-    boolean mediaServiceBound;
-
-    PlayerView playerView;
+    boolean isMediaControllerBound;
+    MediaController mediaController;
+    ListenableFuture<MediaController> mediaControllerFuture;
+    SessionToken sessionToken;
+    Audiobook audiobook;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,55 +97,57 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         chapterNameTxt.setOnClickListener(v -> pickChapter());
         chapterTimeoutTxt.setOnClickListener(v -> pickChapter());
         playButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.playOrPause();
+            if (isMediaControllerBound) {
+                playOrPause();
                 setUiPlayingState();
             }
         });
         nextButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 setGuiMediaPaused();
-                if (mediaPlayerService.playNextChapter()) {
+                if (mediaController.hasNextMediaItem()) {
+                    mediaController.seekToNextMediaItem();
                     setUiForNewAudio();
                     setGuiMediaPlaying();
                 }
             }
         });
         previousButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 setGuiMediaPaused();
-                if (mediaPlayerService.playPreviousChapter()) {
+                if (mediaController.hasPreviousMediaItem()) {
+                    mediaController.seekToPreviousMediaItem();
                     setUiForNewAudio();
                     setGuiMediaPlaying();
                 }
             }
         });
         playbackSpeedButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 pickPlaybackSpeed();
             }
         });
         timeoutButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 pickTimeoutDuration();
             }
         });
 
         fastForwardButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.fastForward();
+            if (isMediaControllerBound) {
+                mediaController.seekForward();
             }
         });
 
         fastRewindButton.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.fastRewind();
+            if (isMediaControllerBound) {
+                mediaController.seekBack();
             }
         });
     }
 
     private void setUiPlayingState() {
-        if (mediaPlayerService.isPlaying()) {
+        if (mediaController.isPlaying()) {
             setGuiMediaPlaying();
         } else {
             setGuiMediaPaused();
@@ -159,7 +168,7 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (!mediaServiceBound) return;
+                if (!isMediaControllerBound) return;
                 startTxt.setText(Utils.convertPlayingTimeToString(progress));
                 setPercentageProgress(seekBar, progress);
                 calculateTimeout();
@@ -167,15 +176,16 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
             }
 
             private void setChapterInfo() {
-                if (chapterName != null && !chapterName.equals(mediaPlayerService.getCurrentChapter().getName())) setUiForNewAudio();
-                String chapterTimeoutText = "Ends in: " + Utils.convertPlayingTimeToString(mediaPlayerService.getTimeToTheEndOfChapter());
+                if (audiobook == null) return;
+                if (chapterName != null && !chapterName.equals(audiobook.getCurrentChapter().getName())) setUiForNewAudio();
+                String chapterTimeoutText = "Ends in: " + Utils.convertPlayingTimeToString(getRemainingTimeInChapter());
                 chapterTimeoutTxt.setText(chapterTimeoutText);
             }
 
             private void calculateTimeout() {
-                if (mediaPlayerService.timeoutSet()) {
-                    timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
-                }
+//                if (mediaPlayerService.timeoutSet()) { TODO
+//                    timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+//                }
             }
 
             private void setPercentageProgress(SeekBar seekBar, long progress) {
@@ -187,14 +197,14 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-                if (!mediaServiceBound) return;
+                if (!isMediaControllerBound) return;
                 setGuiMediaPaused();
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                if (!mediaServiceBound) return;
-                mediaPlayerService.seekMediaPlayer(seekBar.getProgress());
+                if (!isMediaControllerBound) return;
+//                mediaPlayerService.seekMediaPlayer(seekBar.getProgress()); TODO
                 setGuiMediaPlaying();
             }
         });
@@ -203,30 +213,37 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     private void startSeekBar() {
         seekbarTimer = Executors.newScheduledThreadPool(1);
         seekbarTimer.scheduleWithFixedDelay(() -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 if (!seekBar.isPressed()) {
-                    seekBar.setProgress(mediaPlayerService.getCurrentPosition());
+                    try {
+                        long x = mediaController.getCurrentPosition();
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    Log.i("position", String.valueOf(mediaController.getCurrentPosition()));
+                    seekBar.setProgress((int)mediaController.getCurrentPosition());
                 }
             }
-        }, 10, 300, TimeUnit.MILLISECONDS);
+        }, 1000, 300, TimeUnit.MILLISECONDS);
     }
 
     private void setUiForNewAudio() {
-        if (!mediaServiceBound) return;
-        int duration = mediaPlayerService.getDuration();
+        if (!isMediaControllerBound) return;
+        int duration = (int)mediaController.getDuration();
         seekBar.setMax(duration);
         stopTxt.setText(Utils.convertPlayingTimeToString(duration));
-        chapterName = mediaPlayerService.getCurrentChapter().getName();
+        chapterName = audiobook.getCurrentChapter().getName();
         chapterNameTxt.setText(chapterName);
-        byte[] coverImage = mediaPlayerService.getCover();
+        byte[] coverImage = audiobook.getEmbeddedPicture();
         if (coverImage != null) {
             bookCoverImgView.setImageBitmap(BitmapFactory.decodeByteArray(coverImage, 0, coverImage.length));
         }
-        String playbackSpeed = mediaPlayerService.getPlaybackSpeed() + "x";
+        String playbackSpeed = mediaController.getPlaybackParameters().speed + "x";
         playbackSpeedTxt.setText(playbackSpeed);
-        if (mediaPlayerService.timeoutSet()) {
-            timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
-        }
+//        if (mediaPlayerService.timeoutSet()) { TODO
+//            timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((int)mediaPlayerService.getRemainingTimeout()));
+//        }
     }
 
     private void pauseSeekBar() {
@@ -263,7 +280,6 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         toolbar = findViewById(R.id.player_toolbar);
         playerDrawerLayout = findViewById(R.id.player_drawer_layout);
         navigationView = findViewById(R.id.player_nav_view);
-//        playerView = findViewById(R.id.player_view);
 
         chapterNameTxt.setSelected(true);
         setSupportActionBar(toolbar);
@@ -291,12 +307,12 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
         ArrayList<PlaybackSpeed> playbackValues = PlaybackSpeed.getPlaybackSpeeds();
         final OptionsPicker pickPlaybackSpeed = new OptionsPicker(PlayerActivity.this, PlaybackSpeed.playbackValues(), "Playback Speed");
 
-        PlaybackSpeed currentPlaybackSpeed = PlaybackSpeed.getByValue(mediaPlayerService.getPlaybackSpeed());
+        PlaybackSpeed currentPlaybackSpeed = PlaybackSpeed.getByValue(mediaController.getPlaybackParameters().speed);
         if (currentPlaybackSpeed != null) pickPlaybackSpeed.setDefaultValue(currentPlaybackSpeed.getId());
         pickPlaybackSpeed.setValueSetListener(v -> {
             PlaybackSpeed speed = playbackValues.get(pickPlaybackSpeed.getPickedValue());
-            if (mediaServiceBound) {
-                mediaPlayerService.setPlaybackSpeed(speed.getValue());
+            if (isMediaControllerBound) {
+                mediaController.setPlaybackSpeed(speed.getValue());
                 playbackSpeedTxt.setText(speed.getPlaybackString());
                 pickPlaybackSpeed.dismiss();
             }
@@ -306,18 +322,18 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
     private void pickChapter()
     {
-        if (!mediaServiceBound) return;
-        ChaptersCollection.initChaptersCollection(mediaPlayerService.getCurrentAudiobook().getChapters());
+        if (!isMediaControllerBound) return;
+        ChaptersCollection.initChaptersCollection(audiobook.getChapters());
         ArrayList<ChaptersCollection> chaptersValues = ChaptersCollection.getChaptersCollections();
         final OptionsPicker pickChapter = new OptionsPicker(PlayerActivity.this, ChaptersCollection.chaptersNumbers(), "Pick Chapter");
 
-        ChaptersCollection currentChapter = ChaptersCollection.getByUid(mediaPlayerService.getCurrentChapter().getUid());
+        ChaptersCollection currentChapter = ChaptersCollection.getByUid(audiobook.getCurrentChapter().getUid());
         if (currentChapter != null) pickChapter.setDefaultValue(currentChapter.getId());
         pickChapter.setValueSetListener(v -> {
             ChaptersCollection chapter = chaptersValues.get(pickChapter.getPickedValue());
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 setGuiMediaPaused();
-                mediaPlayerService.playSelectedChapter(chapter.getChapter().getUid());
+                mediaController.seekTo(chapter.getChapter().getChapterNumber() - 1, 0);
                 chapterNameTxt.setText(chapter.getChapter().getName());
                 setGuiMediaPlaying();
                 pickChapter.dismiss();
@@ -334,128 +350,92 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
 
         pickTimeout.setValueSetListener(v -> {
             Timeout timeout = timeoutValues.get(pickTimeout.getPickedValue());
-            if (mediaServiceBound) {
-                mediaPlayerService.setTimeout(timeout.getValue());
+            if (isMediaControllerBound) {
+//                mediaPlayerService.setTimeout(timeout.getValue()); TODO
                 timeoutDurationTxt.setText(Utils.convertPlayingTimeToString(timeout.getValue()*60000));
                 pickTimeout.dismiss();
             }
         });
         pickTimeout.setCancelListener(v -> {
-            if (!mediaServiceBound) return;
-            mediaPlayerService.cancelTimeout();
+            if (!isMediaControllerBound) return;
+//            mediaPlayerService.cancelTimeout(); TODO
             timeoutDurationTxt.setText(Utils.convertPlayingTimeToString((0)));
         });
         pickTimeout.show();
     }
 
-    private final ServiceConnection connection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
-            mediaPlayerService = binder.getService();
-            if (mediaPlayerService != null) {
-                mediaServiceBound = true;
-                setUiForNewAudio();
-                if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
-                mediaPlayerService.setCallback(PlayerActivity.this);
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mediaServiceBound = false;
-        }
-    };
-
     @Override
     protected void onStop() {
         super.onStop();
+        MediaController.releaseFuture(mediaControllerFuture);
+        isMediaControllerBound = false;
         pauseSeekBar();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mediaPlayerService != null) {
-            if (mediaServiceBound) {
-                unbindService(connection);
-                mediaServiceBound = false;
-            }
-        }
+//        if (mediaPlayerService != null) {
+//            if (mediaServiceBound) {
+//                unbindService(connection);
+//                mediaServiceBound = false;
+//            }
+//        }
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        SessionToken sessionToken =
-                new SessionToken(this, new ComponentName(this, PlaybackService.class));
-        ListenableFuture<MediaController> controllerFuture =
-                new MediaController.Builder(this, sessionToken).buildAsync();
-        controllerFuture.addListener(() -> {
-            // Call controllerFuture.get() to retrieve the MediaController.
-            // MediaController implements the Player interface, so it can be
-            // attached to the PlayerView UI component.
-            try {
-//                playerView.setPlayer(controllerFuture.get());
-//                playerView.setUseController(false);
-
-                if (mediaServiceBound) {
-//                    mediaPlayerService.playOrPause();
-                    setUiPlayingState();
-                    List<MediaItem> mediaItems = new ArrayList<>();
-                    for (Chapter chapter: mediaPlayerService.getCurrentAudiobook().getChapters()) {
-                        Uri uri = chapter.getPath();
-                        Bundle bundle = new Bundle();
-                        bundle.putString("audiobook-uid", mediaPlayerService.getCurrentAudiobook().getUid());
-                        MediaItem mediaItem =
-                                new MediaItem.Builder()
-                                        .setUri(uri)
-                                        .setMediaMetadata(new MediaMetadata.Builder()
-                                                .setExtras(bundle).build())
-                                        .build();
-                        mediaItems.add(mediaItem);
-                    }
-                    controllerFuture.get().addMediaItems(mediaItems);
-                    controllerFuture.get().prepare();
-                    controllerFuture.get().play();
-                    String h = "";
-                }
-            } catch (ExecutionException e) {
-//                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
-//                throw new RuntimeException(e);
-            }
-        }, MoreExecutors.directExecutor());
-
-        if (!mediaServiceBound) {
-            bindMediaPlayerService();
-
-        } else if (mediaPlayerService != null) {
-            if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
-        }
+        initializeMediaController();
     }
 
-    private void bindMediaPlayerService() {
-        Intent intent = new Intent(PlayerActivity.this, MediaPlayerService.class);
-        bindService(intent, connection, Context.BIND_AUTO_CREATE);
+    @OptIn(markerClass = UnstableApi.class) private void initializeMediaController() {
+        sessionToken =
+                new SessionToken(this, new ComponentName(this, PlaybackService.class));
+        mediaControllerFuture = new MediaController.Builder(this, sessionToken).buildAsync();
+        mediaControllerFuture.addListener(() -> {
+            try {
+                mediaController = mediaControllerFuture.get();
+                isMediaControllerBound = true;
+                audiobook = mediaController.getSessionExtras().getParcelable("audiobook", Audiobook.class);
+                setUiForNewAudio();
+                if (seekbarTimer == null || seekbarTimer.isShutdown()) startSeekBar();
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     @Override
     public void forwardClicked() {
-        if (!mediaServiceBound) return;
-        mediaPlayerService.fastForward();
+        if (!isMediaControllerBound) return;
+        mediaController.seekForward();
     }
 
     @Override
     public void rewindClicked() {
-        if (!mediaServiceBound) return;
-        mediaPlayerService.fastRewind();
+        if (!isMediaControllerBound) return;
+        mediaController.seekBack();
     }
 
     @Override
     public void playClicked() {
-        if (!mediaServiceBound) return;
-        mediaPlayerService.playOrPause();
+        if (!isMediaControllerBound) return;
+        playOrPause();
         setUiPlayingState();
+    }
+
+    private void playOrPause() {
+        if (mediaController.isPlaying()) {
+            mediaController.pause();
+        } else {
+            mediaController.play();
+        }
+    }
+
+    private int getRemainingTimeInChapter() {
+        if (!isMediaControllerBound) return 0;
+        return (int)(mediaController.getDuration() - mediaController.getCurrentPosition());
+
     }
 }

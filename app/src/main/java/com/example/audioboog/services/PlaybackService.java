@@ -10,10 +10,12 @@ import android.os.CountDownTimer;
 import android.os.IBinder;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
@@ -36,9 +38,13 @@ public class PlaybackService extends MediaSessionService {
     DatabaseService databaseService;
     boolean databaseServiceBound;
 
-    @Override
+    Bundle audiobookBundle;
+
+    @OptIn(markerClass = UnstableApi.class) @Override
     public void onCreate() {
         super.onCreate();
+        audiobookBundle = new Bundle();
+        audiobookBundle.putParcelable("audiobook", audiobook);
         bindDatabaseService();
         androidx.media3.common.AudioAttributes playbackAttributes = new androidx.media3.common.AudioAttributes.Builder().
                 setUsage(C.USAGE_MEDIA)
@@ -46,7 +52,20 @@ public class PlaybackService extends MediaSessionService {
                 .build();
         ExoPlayer exoPlayer = new ExoPlayer.Builder(this)
                 .setAudioAttributes(playbackAttributes, true)
+                .setSeekForwardIncrementMs(10000)
+                .setSeekBackIncrementMs(10000)
                 .build();
+        exoPlayer.addListener(new Player.Listener() {
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying) {
+                    updateAudiobookInDatabase();
+                } else {
+                    stopUpdatingAudiobook();
+                }
+                Player.Listener.super.onIsPlayingChanged(isPlaying);
+            }
+        });
         mediaSession = new MediaSession.Builder(this, exoPlayer).setCallback(new MediaSession.Callback() {
             @NonNull
             @Override
@@ -57,12 +76,15 @@ public class PlaybackService extends MediaSessionService {
                         String audiobookuid = extras.getString("audiobook-uid");
                         if (databaseServiceBound) {
                             audiobook = databaseService.getAudiobook(audiobookuid);
+                            audiobookBundle.putParcelable("audiobook", audiobook);
+                            mediaSession.setSessionExtras(audiobookBundle);
                         }
                     }
                 }
                 return MediaSession.Callback.super.onAddMediaItems(mediaSession, controller, mediaItems);
             }
-        }).build();
+        })
+                .setExtras(audiobookBundle).build();
     }
 
     @Override
@@ -112,8 +134,8 @@ public class PlaybackService extends MediaSessionService {
         databaseUpdater = Executors.newScheduledThreadPool(1);
         databaseUpdater.scheduleWithFixedDelay(() -> {
             if (databaseServiceBound && mediaSession.getPlayer().isPlaying() && audiobook != null) {
-//                int currentPosition = getCurrentPosition();
-//                audiobook.setCurrentPosition(currentPosition);
+                int currentPosition = (int)mediaSession.getPlayer().getCurrentPosition();
+                audiobook.setCurrentPosition(currentPosition);
                 audiobook.getCurrentChapter().setCurrentPosition(mediaSession.getPlayer().getCurrentPosition());
                 databaseService.updateAudiobookInDatabase(audiobook);
             }

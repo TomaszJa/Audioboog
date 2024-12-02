@@ -33,6 +33,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -43,20 +45,31 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import android.Manifest;
+
 import androidx.appcompat.widget.SearchView;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
+
 import android.widget.TextView;
 
 import com.example.audioboog.dialogs.AudiobookOptions;
 import com.example.audioboog.services.DatabaseService;
 import com.example.audioboog.services.MediaPlayerService;
+import com.example.audioboog.services.PlaybackService;
 import com.example.audioboog.source.Audiobook;
 import com.example.audioboog.source.Chapter;
 import com.google.android.material.navigation.NavigationView;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private DrawerLayout drawerLayout;
@@ -72,10 +85,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private String currentAudiobookUid;
 
     DatabaseService databaseService;
-    MediaPlayerService mediaPlayerService;
     SharedPreferences sharedPreferences;
     boolean databaseServiceBound;
-    boolean mediaServiceBound;
+
+    boolean isMediaControllerBound;
+    MediaController mediaController;
+    ListenableFuture<MediaController> mediaControllerFuture;
+    SessionToken sessionToken;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,7 +121,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         buttonForward = findViewById(R.id.buttonForward);
         buttonRewind = findViewById(R.id.buttonRewind);
         hbtnpause = findViewById(R.id.hbtnpause);
-        searchView=findViewById(R.id.searchView);
+        searchView = findViewById(R.id.searchView);
 
         setSupportActionBar(toolbar);
         navigationView.setNavigationItemSelectedListener(this);
@@ -127,30 +143,40 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void setClickListeners() {
         searchView.setOnClickListener(v -> searchView.onActionViewExpanded());
         txtnp.setOnClickListener(v -> {
-            if (mediaServiceBound) {
+            if (isMediaControllerBound) {
                 startPlayerActivity();
             }
         });
         hbtnpause.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.playOrPause();
+            if (isMediaControllerBound) {
+                playOrPause();
                 setPlayOrPause();
             }
         });
         buttonForward.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.fastForward();
+            if (isMediaControllerBound) {
+                mediaController.seekForward();
+//                mediaPlayerService.fastForward();
             }
         });
         buttonRewind.setOnClickListener(v -> {
-            if (mediaServiceBound) {
-                mediaPlayerService.fastRewind();
+            if (isMediaControllerBound) {
+                mediaController.seekBack();
+//                mediaPlayerService.fastRewind();
             }
         });
     }
 
+    private void playOrPause() {
+        if (mediaController.isPlaying()) {
+            mediaController.pause();
+        } else {
+            mediaController.play();
+        }
+    }
+
     private void setPlayOrPause() {
-        if (mediaPlayerService.isPlaying()) {
+        if (mediaController.isPlaying()) {
             setGuiMediaPlaying();
         } else {
             setGuiMediaPaused();
@@ -164,29 +190,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void setGuiMediaPlaying() {
         hbtnpause.setImageResource(R.drawable.ic_pause);
     }
-
-    private void initializeMediaPlayerService() {
-        Intent intent = new Intent(getApplicationContext(), MediaPlayerService.class);
-        startForegroundService(intent);
-        bindService(intent, mediaServiceConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    private final ServiceConnection mediaServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            MediaPlayerService.LocalBinder binder = (MediaPlayerService.LocalBinder) service;
-            mediaPlayerService = binder.getService();
-            if (mediaPlayerService != null) {
-                mediaServiceBound = true;
-                mediaPlayerService.playMedia(audiobooks.get(songId));
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName arg0) {
-            mediaServiceBound = false;
-        }
-    };
 
     private final ServiceConnection databaseConnection = new ServiceConnection() {
         @Override
@@ -251,7 +254,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         startPlayerActivity();
     }
 
-    private boolean longListViewClickListener(int position) {
+    @OptIn(markerClass = UnstableApi.class) private boolean longListViewClickListener(int position) {
         Audiobook chosenAudiobook = audiobooks.get(position);
         AudiobookOptions audiobookOptions = new AudiobookOptions(MainActivity.this, chosenAudiobook);
         audiobookOptions.setDeleteButtonListener(v -> {
@@ -260,20 +263,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             builder.setTitle("Delete Audiobook");
             builder.setMessage("Are you sure you want to delete " + chosenAudiobook.getName() + "?");
             builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
-                        databaseService.deleteAudiobook(chosenAudiobook);
-                        audiobooks.remove(chosenAudiobook);
-                        audiobookOptions.dismiss();
-                        displaySongs();
-                    });
+                databaseService.deleteAudiobook(chosenAudiobook);
+                audiobooks.remove(chosenAudiobook);
+                audiobookOptions.dismiss();
+                displaySongs();
+            });
             builder.setNegativeButton(android.R.string.cancel, (dialog, which) -> dialog.dismiss());
             AlertDialog dialog = builder.create();
             dialog.show();
         });
         audiobookOptions.setResetButtonListener(v -> {
-            if (mediaServiceBound) {
-                Audiobook audiobook = mediaPlayerService.getCurrentAudiobook();
-                if (Objects.equals(audiobook.getUid(), chosenAudiobook.getUid())) {
-                    mediaPlayerService.releaseMediaPlayer();
+            if (isMediaControllerBound) {
+                Audiobook audiobook = mediaController.getSessionExtras().getParcelable("audiobook", Audiobook.class);
+                if (audiobook != null && Objects.equals(audiobook.getUid(), chosenAudiobook.getUid())) {
+//                    mediaController.seekTo(0, 0);
+                    mediaController.release();
                 }
             }
             chosenAudiobook.resetAudiobook();
@@ -289,15 +293,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         Audiobook audiobook = audiobooks.get(songId);
         setSongName(audiobook.getName());
 
-        if (!mediaServiceBound) {
-            initializeMediaPlayerService();
+        if (!isMediaControllerBound) {
+            initializeMediaController(audiobook);
         } else {
-            mediaPlayerService.playMedia(audiobooks.get(songId));
+            playAudiobook(audiobook);
         }
         setGuiMediaPlaying();
     }
 
-    private void startPlayerActivity() {
+    @OptIn(markerClass = UnstableApi.class) private void startPlayerActivity() {
         Intent mIntent = new Intent(MainActivity.this, PlayerActivity.class);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         mIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -310,7 +314,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (itemId == R.id.navLibrary) {
             displaySongs();
         } else if (itemId == R.id.navCurrentBook) {
-            for (int i=0; i<audiobooks.size(); i++) {
+            for (int i = 0; i < audiobooks.size(); i++) {
                 currentAudiobookUid = sharedPreferences.getString("currently_playing", "");
                 if (Objects.equals(audiobooks.get(i).getUid(), currentAudiobookUid)) {
                     songId = i;
@@ -417,7 +421,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mediaServiceBound = unbindService(mediaPlayerService, mediaServiceBound, mediaServiceConnection);
+//        mediaServiceBound = unbindService(mediaPlayerService, mediaServiceBound, mediaServiceConnection);
         databaseServiceBound = unbindService(databaseService, databaseServiceBound, databaseConnection);
     }
 
@@ -431,6 +435,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onStart() {
         super.onStart();
+        initializeMediaController(null);
     }
 
     @Override
@@ -446,12 +451,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onStop() {
         super.onStop();
+        MediaController.releaseFuture(mediaControllerFuture);
+        isMediaControllerBound = false;
     }
 
     @Override
     protected void onResume() {
-        if (mediaServiceBound && mediaPlayerService != null) {
-            setSongName(mediaPlayerService.getCurrentAudiobook().getName());
+        if (isMediaControllerBound && mediaController != null && mediaController.getCurrentMediaItem() != null) {
+            setSongName((String) mediaController.getCurrentMediaItem().mediaMetadata.albumTitle);
             setPlayOrPause();
         }
         super.onResume();
@@ -533,11 +540,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         audiobooks = databaseService.getAudiobooks();
                         results.values = audiobooks;
                         results.count = audiobooks.size();
-                    }
-                    else {
+                    } else {
                         ArrayList<Audiobook> filteredAudiobooks = new ArrayList<>();
                         for (Audiobook audiobook : audiobooks) {
-                            if (audiobook.getName().toUpperCase().contains( constraint.toString().toUpperCase())) {
+                            if (audiobook.getName().toUpperCase().contains(constraint.toString().toUpperCase())) {
                                 filteredAudiobooks.add(audiobook);
                             }
                         }
@@ -546,6 +552,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     }
                     return results;
                 }
+
                 @Override
                 protected void publishResults(CharSequence constraint, FilterResults results) {
                     audiobooks = (ArrayList<Audiobook>) results.values;
@@ -554,5 +561,44 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             };
         }
     }
+
+    private void initializeMediaController(@Nullable Audiobook audiobook) {
+        sessionToken =
+                new SessionToken(this, new ComponentName(this, PlaybackService.class));
+        mediaControllerFuture = new MediaController.Builder(this, sessionToken).buildAsync();
+        mediaControllerFuture.addListener(() -> {
+            try {
+                mediaController = mediaControllerFuture.get();
+                isMediaControllerBound = true;
+                if (audiobook != null) {
+                    playAudiobook(audiobook);
+                }
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    private void playAudiobook(Audiobook audiobook) {
+        if (mediaController != null) {
+            List<MediaItem> mediaItems = new ArrayList<>();
+            for (Chapter chapter : audiobook.getChapters()) {
+                Uri uri = chapter.getPath();
+                Bundle bundle = new Bundle();
+                bundle.putString("audiobook-uid", audiobook.getUid());
+                MediaItem mediaItem =
+                        new MediaItem.Builder()
+                                .setUri(uri)
+                                .setMediaMetadata(new MediaMetadata.Builder()
+                                        .setExtras(bundle).build())
+                                .build();
+                mediaItems.add(mediaItem);
+            }
+            mediaController.addMediaItems(mediaItems);
+            mediaController.prepare();
+            mediaController.play();
+        }
+    }
+
 
 }
