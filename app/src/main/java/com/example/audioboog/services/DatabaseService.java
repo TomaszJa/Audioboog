@@ -63,6 +63,10 @@ public class DatabaseService extends Service {
         return submitTask(this::loadAudiobooksFromDatabase);
     }
 
+    public Audiobook getAudiobook(String audiobookUid) {
+        return submitTask(() -> getAudiobookById(audiobookUid));
+    }
+
     public void updateAudiobook(Audiobook audiobook) {
         submitTask(() -> updateAudiobookInDatabase(audiobook));
     }
@@ -85,6 +89,13 @@ public class DatabaseService extends Service {
         } catch (ExecutionException | InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Audiobook getAudiobookById(String audiobookUid) {
+        AudiobookWithChapters audiobookWithChapters = audiobookDao.getAudiobookById(audiobookUid);
+        Audiobook audiobook = audiobookWithChapters.audiobook;
+        audiobook.updateWithChapters(new ArrayList<>(audiobookWithChapters.chapters));
+        return audiobook;
     }
 
     private ArrayList<Audiobook> loadAudiobooksFromDatabase() {

@@ -25,6 +25,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 import androidx.media3.session.MediaController;
 import androidx.media3.session.SessionToken;
@@ -44,6 +45,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -385,40 +387,45 @@ public class PlayerActivity extends AppCompatActivity implements NavigationView.
     @Override
     protected void onStart() {
         super.onStart();
-//        SessionToken sessionToken =
-//                new SessionToken(this, new ComponentName(this, PlaybackService.class));
-//        ListenableFuture<MediaController> controllerFuture =
-//                new MediaController.Builder(this, sessionToken).buildAsync();
-//        controllerFuture.addListener(() -> {
-//            // Call controllerFuture.get() to retrieve the MediaController.
-//            // MediaController implements the Player interface, so it can be
-//            // attached to the PlayerView UI component.
-//            try {
-////                playerView.setPlayer(controllerFuture.get());
-////                playerView.setUseController(false);
-//
-//                if (mediaServiceBound) {
-////                    mediaPlayerService.playOrPause();
-//                    setUiPlayingState();
-//                    for (Chapter chapter: mediaPlayerService.getCurrentAudiobook().getChapters()) {
-//                        Uri uri = chapter.getPath();
-//                        MediaItem item = MediaItem.fromUri(uri);
-//                        controllerFuture.get().addMediaItem(item);
-//                    }
-//                    controllerFuture.get().prepare();
-//                    controllerFuture.get().play();
-//                    long x = controllerFuture.get().getContentDuration();
-//                    long y = controllerFuture.get().getCurrentPosition();
-//                    long z = controllerFuture.get().getContentPosition();
-//                    int o = controllerFuture.get().getMediaItemCount();
-//                    String h = "";
-//                }
-//            } catch (ExecutionException e) {
-////                throw new RuntimeException(e);
-//            } catch (InterruptedException e) {
-////                throw new RuntimeException(e);
-//            }
-//        }, MoreExecutors.directExecutor());
+        SessionToken sessionToken =
+                new SessionToken(this, new ComponentName(this, PlaybackService.class));
+        ListenableFuture<MediaController> controllerFuture =
+                new MediaController.Builder(this, sessionToken).buildAsync();
+        controllerFuture.addListener(() -> {
+            // Call controllerFuture.get() to retrieve the MediaController.
+            // MediaController implements the Player interface, so it can be
+            // attached to the PlayerView UI component.
+            try {
+//                playerView.setPlayer(controllerFuture.get());
+//                playerView.setUseController(false);
+
+                if (mediaServiceBound) {
+//                    mediaPlayerService.playOrPause();
+                    setUiPlayingState();
+                    List<MediaItem> mediaItems = new ArrayList<>();
+                    for (Chapter chapter: mediaPlayerService.getCurrentAudiobook().getChapters()) {
+                        Uri uri = chapter.getPath();
+                        Bundle bundle = new Bundle();
+                        bundle.putString("audiobook-uid", mediaPlayerService.getCurrentAudiobook().getUid());
+                        MediaItem mediaItem =
+                                new MediaItem.Builder()
+                                        .setUri(uri)
+                                        .setMediaMetadata(new MediaMetadata.Builder()
+                                                .setExtras(bundle).build())
+                                        .build();
+                        mediaItems.add(mediaItem);
+                    }
+                    controllerFuture.get().addMediaItems(mediaItems);
+                    controllerFuture.get().prepare();
+                    controllerFuture.get().play();
+                    String h = "";
+                }
+            } catch (ExecutionException e) {
+//                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+            }
+        }, MoreExecutors.directExecutor());
 
         if (!mediaServiceBound) {
             bindMediaPlayerService();
