@@ -1,21 +1,17 @@
 package com.example.audioboog.services;
 
-import android.net.Uri;
-
+import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.media3.common.C;
-import androidx.media3.common.MediaItem;
-import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 
-import com.example.audioboog.source.Audiobook;
-import com.example.audioboog.source.Chapter;
-
 public class PlaybackService extends MediaSessionService {
     private MediaSession mediaSession = null;
 
-    @Override
+    @OptIn(markerClass = UnstableApi.class) @Override
     public void onCreate() {
         super.onCreate();
         androidx.media3.common.AudioAttributes playbackAttributes = new androidx.media3.common.AudioAttributes.Builder().
@@ -24,12 +20,14 @@ public class PlaybackService extends MediaSessionService {
                 .build();
         ExoPlayer exoPlayer = new ExoPlayer.Builder(this)
                 .setAudioAttributes(playbackAttributes, true)
+                .setSeekBackIncrementMs(10000)
+                .setSeekForwardIncrementMs(10000)
                 .build();
         mediaSession = new MediaSession.Builder(this, exoPlayer).build();
     }
 
     @Override
-    public MediaSession onGetSession(MediaSession.ControllerInfo controllerInfo) {
+    public MediaSession onGetSession(@NonNull MediaSession.ControllerInfo controllerInfo) {
         // This example always accepts the connection request
         return mediaSession;
     }
@@ -40,16 +38,5 @@ public class PlaybackService extends MediaSessionService {
         mediaSession.release();
         mediaSession = null;
         super.onDestroy();
-    }
-
-    public void playAudiobook(Audiobook audiobook) {
-        Player player = mediaSession.getPlayer();
-        for (Chapter chapter: audiobook.getChapters()) {
-            Uri uri = chapter.getPath();
-            MediaItem item = MediaItem.fromUri(uri);
-            player.addMediaItem(item);
-        }
-        player.prepare();
-        player.play();
     }
 }
